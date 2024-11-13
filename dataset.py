@@ -18,8 +18,8 @@ from dice_rl.data.dataset import EnvStep
 from dice_rl.data.tf_offpolicy_dataset import TFOffpolicyDataset
 
 from dice_rl_TU_Vienna.specs import get_step_num_spec
-from dice_rl_TU_Vienna.applications.dice_rl.create_dataset import add_episodes_to_dataset
-from dice_rl_TU_Vienna.applications.stable_baslines.specs import get_observation_action_spec_from_env
+from plugins.dice_rl.create_dataset import add_episodes_to_dataset
+from plugins.stable_baslines.specs import get_observation_action_spec_from_env
 
 from utils.general import SuppressPrint
 
