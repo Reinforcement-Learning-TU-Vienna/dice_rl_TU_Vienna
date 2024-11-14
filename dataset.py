@@ -27,6 +27,10 @@ from utils.general import SuppressPrint
 
 def get_dataset_spec(observation_spec, action_spec, step_num_max, info_specs=None):
 
+    assert observation_spec is not None
+    assert action_spec      is not None
+    assert step_num_max     is not None
+
     if info_specs is None: info_specs = {}, {}, {}
 
     time_step_spec = get_time_step_spec(observation_spec) # type: ignore
@@ -51,12 +55,8 @@ def get_dataset_spec(observation_spec, action_spec, step_num_max, info_specs=Non
 class TFOffpolicyDatasetGenerator(ABC):
     def __init__(
             self,
-            env, get_act,
             num_trajectory, max_trajectory_length,
-            by, seed=0):
-
-        self.env = env
-        self.get_act = get_act
+            by, seed=None):
 
         self.num_trajectory = num_trajectory
         self.max_trajectory_length = max_trajectory_length
@@ -65,10 +65,10 @@ class TFOffpolicyDatasetGenerator(ABC):
 
         self.trajectories = []
 
-        np.random.seed(seed)
+        if seed is not None: np.random.seed(seed)
 
     def get_dataset(self, verbosity=1):
-        self.dataset_spec = self.get_spec()
+        self.dataset_spec = self.get_dataset_spec()
         self.get_trajectories(verbosity)
 
         self.dataset_capacity = self.get_capacity()
@@ -77,27 +77,28 @@ class TFOffpolicyDatasetGenerator(ABC):
 
         self.add_SEEs_to_dataset(verbosity)
 
-    def get_spec(self):
-        observation_spec, action_spec = self.get_observation_action_spec()
+    def get_dataset_spec(self):
+        observation_spec, action_spec = self.get_observation_action_spec() # type: ignore
         step_num_max = self.step_num_max
         info_specs = self.get_info_specs()
 
         return get_dataset_spec(
             observation_spec, action_spec, step_num_max, info_specs)
 
-    def get_trajectories(self, verbosity=1):
-        pbar = range(self.num_trajectory)
-        if verbosity > 0:
-            print(f"getting {self.by}")
-            pbar = tqdm(pbar)
-
-        for _ in pbar:
-            trajectory = self.get_trajectory()
-            self.trajectories.append(trajectory)
-
     @abstractmethod
     def get_capacity(self):
         pass
+
+    @abstractmethod
+    def get_observation_action_spec(self):
+        pass
+
+    @property
+    def step_num_max(self):
+        return self.max_trajectory_length
+
+    def get_info_specs(self):
+        return {}, {}, {}
 
     def add_SEEs_to_dataset(self, verbosity=1):
         pbar = range(self.num_trajectory)
@@ -113,24 +114,23 @@ class TFOffpolicyDatasetGenerator(ABC):
                 write_dataset=self.dataset,
             )
 
-    def get_observation_action_spec(self):
-        return get_observation_action_spec_from_env(self.env)
+    def get_trajectories(self, verbosity=1):
+        pbar = range(self.num_trajectory)
+        if verbosity > 0:
+            print(f"getting {self.by}")
+            pbar = tqdm(pbar)
 
-    @property
-    @abstractmethod
-    def step_num_max(self):
-        pass
-
-    def get_info_specs(self):
-        return {}, {}, {}
+        for _ in pbar:
+            trajectory = self.get_trajectory()
+            self.trajectories.append(trajectory)
 
     def get_trajectory(self):
-        observation, action, reward = self.get_observation_action_reward() # type: ignore
+        observation, action, reward = \
+            self.get_observation_action_reward() # type: ignore
 
         step_type = self.get_step_type()
-        step_num  = self.get_step_num ()
-
-        discount = self.get_discount()
+        step_num  = self.get_step_num()
+        discount  = self.get_discount()
 
         policy_info, env_info, other_info = self.get_info()
 
@@ -170,7 +170,23 @@ class TFOffpolicyDatasetGenerator(ABC):
         pass
 
 
-class TFOffpolicyDatasetGenerator_StepsEpisodes(TFOffpolicyDatasetGenerator):
+class TFOffpolicyDatasetGenerator_Env(TFOffpolicyDatasetGenerator):
+    def __init__(
+            self,
+            env, get_act,
+            num_trajectory, max_trajectory_length,
+            by, seed=0):
+
+        self.env = env
+        self.get_act = get_act
+
+        super().__init__(num_trajectory, max_trajectory_length, by, seed)
+
+    def get_observation_action_spec(self):
+        return get_observation_action_spec_from_env(self.env)
+
+
+class TFOffpolicyDatasetGenerator_StepsEpisodes(TFOffpolicyDatasetGenerator_Env):
     def __init__(
             self,
             env, get_act, num_trajectory, max_trajectory_length=None,
@@ -184,7 +200,6 @@ class TFOffpolicyDatasetGenerator_StepsEpisodes(TFOffpolicyDatasetGenerator):
         if max_trajectory_length is not None:
             env = TimeLimit(env, max_episode_steps=max_trajectory_length)
 
-
         self.n_pads = n_pads
         self.i_pad = 0
 
@@ -195,10 +210,6 @@ class TFOffpolicyDatasetGenerator_StepsEpisodes(TFOffpolicyDatasetGenerator):
             np.max(episode.step_num) + 1
                 for episode, _ in self.trajectories
         ])
-
-    @property
-    def step_num_max(self):
-        return self.last_trajectory_length
 
     def get_observation_action_reward(self):
         obs_array = []; act_array = []; rew_array = []
@@ -221,6 +232,10 @@ class TFOffpolicyDatasetGenerator_StepsEpisodes(TFOffpolicyDatasetGenerator):
             obs = obs_next
 
         self.last_trajectory_length = t
+
+        t_max = self.max_trajectory_length
+        if t_max is None or t_max < t:
+            self.max_trajectory_length = t_max
 
         obs_np = np.array(obs_array)
         act_np = np.array(act_array)
@@ -293,7 +308,7 @@ class TFOffpolicyDatasetGenerator_StepsEpisodes(TFOffpolicyDatasetGenerator):
             return False
 
 
-class TFOffpolicyDatasetGenerator_Experience(TFOffpolicyDatasetGenerator):
+class TFOffpolicyDatasetGenerator_Experience(TFOffpolicyDatasetGenerator_Env):
     def __init__(self, env, num_experience, seed=0):
         get_act = lambda obs: env.action_space.sample()
 
@@ -309,11 +324,7 @@ class TFOffpolicyDatasetGenerator_Experience(TFOffpolicyDatasetGenerator):
         )
 
     def get_capacity(self):
-        return self.num_trajectory * 3
-
-    @property
-    def step_num_max(self):
-        return 2
+        return self.num_trajectory * self.max_trajectory_length
 
     def get_observation_action_reward(self):
         obs_init, _ = self.env.reset()
@@ -341,6 +352,10 @@ class TFOffpolicyDatasetGenerator_Experience(TFOffpolicyDatasetGenerator):
 
         return obs_tf, act_tf, rew_tf
 
+    @property
+    def step_num_max(self):
+        return 2
+
     def get_step_type(self):
         step_type_np = np.array([0, 1, 1])
         step_type = tf.convert_to_tensor(
@@ -364,6 +379,120 @@ class TFOffpolicyDatasetGenerator_Experience(TFOffpolicyDatasetGenerator):
 
     def get_valid_ids(self):
         valid_ids_int = tf.ones(3)
+        valid_ids = tf.cast(valid_ids_int, dtype=tf.bool)
+
+        return valid_ids
+
+
+class TFOffpolicyDatasetGenerator_Dataframe(TFOffpolicyDatasetGenerator):
+    def __init__(
+            self,
+            df, get_split,
+            observation_action_spec, n_pads=1):
+
+        self.df = df
+        self.get_split = get_split
+        self.observation_action_spec = observation_action_spec
+        self.n_pads = n_pads
+
+        ids, *_ = self.get_split(self.df)
+        u, c = np.unique(ids, return_counts=True)
+
+        self.ids_u = u
+        self.ids_c = c
+        self.ids_counter = None
+
+        num_trajectory = len(u)
+        max_trajectory_length = np.max(c)
+        by = "steps"
+        seed = None
+
+        super().__init__(num_trajectory, max_trajectory_length, by, seed)
+
+    def get_capacity(self):
+        return len(self.df) + self.n_pads * self.num_trajectory
+
+    def get_observation_action_spec(self):
+        return self.observation_action_spec
+
+    def get_trajectories(self, verbosity=1):
+        self.ids_counter = 0
+        super().get_trajectories(verbosity)
+        self.ids_counter = None
+
+    def get_trajectory(self):
+        trajectory, valid_ids = super().get_trajectory()
+        self.increase_ids_counter()
+        return trajectory, valid_ids
+
+    @property
+    def current_id(self):
+        return self.ids_u[self.ids_counter]
+
+    @property
+    def current_episode_length(self):
+        return np.sum(self.df["id"] == self.current_id)
+
+    @property
+    def current_episode_length_padded(self):
+        return self.current_episode_length + self.n_pads
+
+    @property
+    def current_df_filtered(self):
+        return self.df[self.df["id"] == self.current_id]
+
+    def increase_ids_counter(self):
+        assert self.ids_counter is not None
+        self.ids_counter += 1
+
+    def get_observation_action_reward(self):
+        _, _, obs, act, rew = self.get_split(self.current_df_filtered)
+
+        obs = np.array(obs)
+        act = np.array(act)
+        rew = np.array(rew)
+
+        obs_term = np.expand_dims(obs[-1], axis=0)
+        act_term = np.expand_dims(0, axis=0)
+        rew_term = np.expand_dims(0, axis=0)
+
+        obs = np.concatenate([obs] + [obs_term] * self.n_pads, axis=0)
+        act = np.concatenate([act] + [act_term] * self.n_pads, axis=0)
+        rew = np.concatenate([rew] + [rew_term] * self.n_pads, axis=0)
+
+        obs = tf.convert_to_tensor(obs, dtype=self.dataset_spec.observation.dtype)
+        act = tf.convert_to_tensor(act, dtype=self.dataset_spec.action     .dtype)
+        rew = tf.convert_to_tensor(rew, dtype=self.dataset_spec.reward     .dtype)
+
+        return obs, act, rew
+
+    def get_step_type(self):
+        step_type_np = np.ones(self.current_episode_length_padded)
+        step_type_np[0] = 0
+        step_type_np[-1] = 2
+        step_type = tf.convert_to_tensor(
+            step_type_np, dtype=self.dataset_spec.step_type.dtype)
+
+        return step_type
+
+    def get_step_num(self):
+        step_num_np = np.arange(self.current_episode_length_padded)
+        step_num = tf.convert_to_tensor(
+            step_num_np, dtype=self.dataset_spec.step_num.dtype)
+
+        return step_num
+
+    def get_discount(self):
+        gamma = 1
+        discount_np = gamma ** np.arange(self.current_episode_length_padded)
+        discount_np[-1] = 0
+        discount = tf.convert_to_tensor(
+            discount_np, dtype=self.dataset_spec.discount.dtype)
+
+        return discount
+
+    def get_valid_ids(self):
+        valid_ids_int = tf.ones(self.current_episode_length_padded)
         valid_ids = tf.cast(valid_ids_int, dtype=tf.bool)
 
         return valid_ids
@@ -405,7 +534,8 @@ def load_or_create_dataset(dataset_dir, get_generator, verbosity=0):
 def load_or_create_dataset_StepsEpisodes(
         dataset_dir,
         env, get_act, num_trajectory, max_trajectory_length=None,
-        by="steps", seed=0, n_pads=0, verbosity=0):
+        by="steps", seed=0, n_pads=0,
+        verbosity=0):
     
     get_generator = lambda: TFOffpolicyDatasetGenerator_StepsEpisodes(
         env, get_act,
@@ -418,10 +548,22 @@ def load_or_create_dataset_StepsEpisodes(
 
 def load_or_create_dataset_Experience(
         dataset_dir,
-        env, num_experience, seed=0, verbosity=0):
+        env, num_experience, seed=0,
+        verbosity=0):
 
     get_generator = lambda: TFOffpolicyDatasetGenerator_Experience(
         env, num_experience, seed, )
+
+    return load_or_create_dataset(dataset_dir, get_generator, verbosity=verbosity)
+
+
+def load_or_create_dataset_Dataframe(
+        dataset_dir,
+        df, get_split, observation_action_spec, n_pads,
+        verbosity=0):
+
+    get_generator = lambda: TFOffpolicyDatasetGenerator_Dataframe(
+        df, get_split, observation_action_spec, n_pads, )
 
     return load_or_create_dataset(dataset_dir, get_generator, verbosity=verbosity)
 
