@@ -19,8 +19,32 @@ def plot_observations(dataset):
     )
 
     plt.figure( figsize=(24, 4), )
-    plt.bar(u, c)
+    plt.bar(u, c / sum(c))
     plt.yscale("log")
+    plt.grid(linestyle=":")
+    plt.show()
+
+def plot_observations_difference(dataset_1, dataset_2, ylim=None):
+    u_1, c_1 = np.unique(
+        dataset_1.get_all_steps(include_terminal_steps=False).observation,
+        return_counts=True,
+    )
+    d_1 = dict( zip(u_1, c_1 / sum(c_1) ) )
+
+    u_2, c_2 = np.unique(
+        dataset_2.get_all_steps(include_terminal_steps=False).observation,
+        return_counts=True,
+    )
+    d_2 = dict( zip(u_2, c_2 / sum(c_2) ) )
+
+    K = set( list( d_1.keys() ) + list( d_2.keys() ) )
+
+    d = { k: d_1.get(k, 0) - d_2.get(k, 0) for k in K }
+    d = dict( sorted( d.items() ) )
+
+    plt.figure( figsize=(24, 4), )
+    plt.bar( d.keys(), d.values() ) # type: ignore
+    plt.ylim(ylim)
     plt.grid(linestyle=":")
     plt.show()
 
