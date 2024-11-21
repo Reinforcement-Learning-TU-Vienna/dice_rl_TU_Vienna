@@ -48,7 +48,7 @@ def sample_step(
 
 # -------------------------------- #
 
-def sample_by_episodes(dataset, target_policy, obs_act):
+def sample_by_episodes(dataset, target_policy=None, obs_act=True):
 
     _, n_act, dim = get_dims(dataset.spec, obs_act)
 
@@ -95,7 +95,7 @@ def sample_by_episodes(dataset, target_policy, obs_act):
     return d0_bar, dD_bar, P_bar, r_bar, n
 
 
-def sample_by_steps(dataset, target_policy, obs_act):
+def sample_by_steps(dataset, target_policy=None, obs_act=True):
 
     _, n_act, dim = get_dims(dataset.spec, obs_act)
 
@@ -137,7 +137,7 @@ def sample_by_steps(dataset, target_policy, obs_act):
     return d0_bar, dD_bar, P_bar, r_bar, n
 
 
-def sample_by_experience(dataset, target_policy, obs_act):
+def sample_by_experience(dataset, target_policy=None, obs_act=True):
 
     _, n_act, dim = get_dims(dataset.spec, obs_act)
 
@@ -184,7 +184,7 @@ samplers = {
     "experience": sample_by_experience,
 }
 
-def sample(by, dataset, target_policy, obs_act):
+def sample(by, dataset, target_policy=None, obs_act=True):
     return samplers[by](dataset, target_policy, obs_act)
 
 # ---------------------------------------------------------------- #

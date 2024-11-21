@@ -51,8 +51,8 @@ def load_aux_estimates(
 
 def load_or_create_aux_estimates(
         aux_estimates_dir,
-        dataset, target_policy,
-        by, obs_act=True,
+        dataset, target_policy=None,
+        by="steps", obs_act=True,
         verbosity=0):
 
     try:
@@ -66,10 +66,7 @@ def load_or_create_aux_estimates(
         assert False
 
     except:
-        aux_estimates = sample(
-            by,
-            dataset, target_policy,
-            obs_act)
+        aux_estimates = sample(by, dataset, target_policy, obs_act)
 
         save_aux_estimates(
             aux_estimates,
