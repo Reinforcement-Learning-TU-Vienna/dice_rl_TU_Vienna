@@ -48,6 +48,24 @@ def get_rewards_matrix_dataset(dataset, by="steps", verbosity=0):
 
     return rewards, max_trajectory_length
 
+
+def get_rewards_matrix_dataframe(df, get_split, get_episode, pad_rew, verbosity=0):
+    rewards = []
+
+    ids, *_ = get_split(df)
+
+    pbar = set(ids)
+    if verbosity == 1: pbar = tqdm(pbar)
+
+    for id in pbar:
+        df_id = get_episode(df, id)
+        _, _, _, rew, _ = get_split(df_id)
+        rewards.append( list(rew) )
+
+    rewards, max_trajectory_length = pad(rewards, pad_rew, verbosity=verbosity)
+
+    return rewards, max_trajectory_length
+
 # ---------------------------------------------------------------- #
 
 def get_get_policy_value(rewards, max_trajectory_length):
@@ -84,6 +102,16 @@ def get_get_policy_value_dataset(dataset, by="steps", verbosity=0):
 
     rewards, max_trajectory_length = get_rewards_matrix_dataset(
         dataset, by, verbosity=verbosity)
+
+    get_policy_value = get_get_policy_value(
+        rewards, max_trajectory_length)
+
+    return get_policy_value, rewards
+
+def get_get_policy_value_dataframe(df, get_split, get_episode, pad_rew=0, verbosity=0):
+
+    rewards, max_trajectory_length = get_rewards_matrix_dataframe(
+        df, get_split, get_episode, pad_rew, verbosity=verbosity)
 
     get_policy_value = get_get_policy_value(
         rewards, max_trajectory_length)
