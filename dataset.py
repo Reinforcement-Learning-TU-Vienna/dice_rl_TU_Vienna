@@ -7,19 +7,20 @@ import pandas as pd
 import tensorflow as tf
 
 from tf_agents.trajectories.time_step import time_step_spec as get_time_step_spec
+from tf_agents.specs import tensor_spec, BoundedArraySpec
 
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 
 from gymnasium.wrappers.time_limit import TimeLimit
 
-
 from dice_rl.data.dataset import EnvStep
 from dice_rl.data.tf_offpolicy_dataset import TFOffpolicyDataset
 
 from dice_rl_TU_Vienna.specs import get_step_num_spec
+from dice_rl_TU_Vienna.plugins.stable_baselines3.specs import get_observation_action_spec_from_env
+
 from plugins.dice_rl.create_dataset import add_episodes_to_dataset
-from plugins.stable_baslines.specs import get_observation_action_spec_from_env
 
 from utils.general import SuppressPrint
 
@@ -134,6 +135,7 @@ class TFOffpolicyDatasetGenerator(ABC):
 
         policy_info, env_info, other_info = self.get_info()
 
+        assert len(step_num) > 1, "trajectories should have length > 1" # type: ignore
         trajectory = EnvStep(
             step_type, step_num,
             observation, action, reward,
@@ -387,13 +389,17 @@ class TFOffpolicyDatasetGenerator_Experience(TFOffpolicyDatasetGenerator_Env):
 class TFOffpolicyDatasetGenerator_Dataframe(TFOffpolicyDatasetGenerator):
     def __init__(
             self,
-            df, get_split,
-            observation_action_spec, n_pads=1):
+            df, get_split, get_episode,
+            observation_action_spec, n_pads=0):
 
         self.df = df
         self.get_split = get_split
+        self.get_episode = get_episode
         self.observation_action_spec = observation_action_spec
         self.n_pads = n_pads
+
+        self.observation_spec = self.observation_action_spec[0]
+        self.action_spec      = self.observation_action_spec[1]
 
         ids, *_ = self.get_split(self.df)
         u, c = np.unique(ids, return_counts=True)
@@ -415,6 +421,25 @@ class TFOffpolicyDatasetGenerator_Dataframe(TFOffpolicyDatasetGenerator):
     def get_observation_action_spec(self):
         return self.observation_action_spec
 
+    def get_info_specs(self):
+        l = self.action_spec.maximum + 1
+
+        policy_info = {}
+        env_info = {}
+        other_info = {
+            "probability": tensor_spec.from_spec(
+                BoundedArraySpec(
+                    shape=(l,),
+                    dtype=np.float32,
+                    minimum=np.zeros(l),
+                    maximum=np.ones(l),
+                    name="probability",
+                )
+            )
+        }
+
+        return policy_info, env_info, other_info
+
     def get_trajectories(self, verbosity=1):
         self.ids_counter = 0
         super().get_trajectories(verbosity)
@@ -431,7 +456,8 @@ class TFOffpolicyDatasetGenerator_Dataframe(TFOffpolicyDatasetGenerator):
 
     @property
     def current_episode_length(self):
-        return np.sum(self.df["id"] == self.current_id)
+        # return np.sum(self.df["icustayid"] == self.current_id)
+        return len(self.current_df_filtered)
 
     @property
     def current_episode_length_padded(self):
@@ -439,14 +465,14 @@ class TFOffpolicyDatasetGenerator_Dataframe(TFOffpolicyDatasetGenerator):
 
     @property
     def current_df_filtered(self):
-        return self.df[self.df["id"] == self.current_id]
+        return self.get_episode(self.df, self.current_id)
 
     def increase_ids_counter(self):
         assert self.ids_counter is not None
         self.ids_counter += 1
 
     def get_observation_action_reward(self):
-        _, _, obs, act, rew = self.get_split(self.current_df_filtered)
+        _, obs, act, rew, _ = self.get_split(self.current_df_filtered)
 
         obs = np.array(obs)
         act = np.array(act)
@@ -490,6 +516,19 @@ class TFOffpolicyDatasetGenerator_Dataframe(TFOffpolicyDatasetGenerator):
             discount_np, dtype=self.dataset_spec.discount.dtype)
 
         return discount
+
+    def get_info(self):
+        env_info = {}
+        policy_info = {}
+
+        *_, probability = self.get_split(self.current_df_filtered)
+        probability = list(probability)
+        probability += [ probability[-1] ] * self.n_pads
+        probability = tf.convert_to_tensor(
+            [p for p in probability], dtype=self.dataset_spec.other_info["probability"].dtype)
+        other_info = { "probability": probability }
+
+        return env_info, policy_info, other_info
 
     def get_valid_ids(self):
         valid_ids_int = tf.ones(self.current_episode_length_padded)
@@ -559,11 +598,11 @@ def load_or_create_dataset_Experience(
 
 def load_or_create_dataset_Dataframe(
         dataset_dir,
-        df, get_split, observation_action_spec, n_pads,
+        df, get_split, get_episode, observation_action_spec, n_pads,
         verbosity=0):
 
     get_generator = lambda: TFOffpolicyDatasetGenerator_Dataframe(
-        df, get_split, observation_action_spec, n_pads, )
+        df, get_split, get_episode, observation_action_spec, n_pads, )
 
     return load_or_create_dataset(dataset_dir, get_generator, verbosity=verbosity)
 
