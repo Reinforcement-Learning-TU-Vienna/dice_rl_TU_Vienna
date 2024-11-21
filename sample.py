@@ -15,8 +15,8 @@ def get_probs(env_step, policy=None):
             .action \
             .probs_parameter() # type: ignore
     else:
-        assert "target_policy_probs" in env_step.other_info.keys()
-        env_step_target_probs = env_step.other_info["target_policy_probs"]
+        assert "probability" in env_step.other_info.keys()
+        env_step_target_probs = env_step.other_info["probability"]
 
     env_step_target_probs = tf.cast(env_step_target_probs, dtype=tf.float32)
     return env_step_target_probs
