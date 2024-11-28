@@ -204,21 +204,46 @@ class NeuralDice(object):
 
         gradients = {}
 
-        grads_primal = tape.gradient(loss_primal, self.network_primal.variables)
-        grads_dual   = tape.gradient(loss_dual,   self.network_dual  .variables)
+        # ---- #
+        # values
 
-        grads_primal = [grad / batch_size for grad in grads_primal] # type: ignore
-        grads_dual   = [grad / batch_size for grad in grads_dual  ] # type: ignore
+        primal_values_init, primal_values, primal_values_next, dual_values, _ = values
 
-        gradients["primal"] = grads_primal
-        gradients["dual"]   = grads_dual
+        grads_primal_values_init = tape.gradient(primal_values_init, self.network_primal.variables)
+        grads_primal_values      = tape.gradient(primal_values,      self.network_primal.variables)
+        grads_primal_values_next = tape.gradient(primal_values_next, self.network_primal.variables)
+        grads_dual_values        = tape.gradient(dual_values,        self.network_dual  .variables)
+
+        grads_primal_values_init = [grad / batch_size for grad in grads_primal_values_init] # type: ignore
+        grads_primal_values      = [grad / batch_size for grad in grads_primal_values]      # type: ignore
+        grads_primal_values_next = [grad / batch_size for grad in grads_primal_values_next] # type: ignore
+        grads_dual_values        = [grad / batch_size for grad in grads_dual_values]        # type: ignore
+
+        gradients["primal_values_init"] = grads_primal_values_init
+        gradients["primal_values"]      = grads_primal_values
+        gradients["primal_values_next"] = grads_primal_values_next
+        gradients["dual_values"]        = grads_dual_values
+
+        # ---- #
+        # loss
+
+        grads_loss_primal = tape.gradient(loss_primal, self.network_primal.variables)
+        grads_loss_dual   = tape.gradient(loss_dual,   self.network_dual  .variables)
+
+        grads_loss_primal = [grad / batch_size for grad in grads_loss_primal] # type: ignore
+        grads_loss_dual   = [grad / batch_size for grad in grads_loss_dual]   # type: ignore
+
+        gradients["loss_primal"] = grads_loss_primal
+        gradients["loss_dual"]   = grads_loss_dual
 
         if self.network_norm is not None:
             grads_norm = tape.gradient(loss_norm, [self.network_norm])
-            grads_norm = [grad / batch_size for grad in grads_norm]   # type: ignore
-            gradients["norm"] = grads_norm
+            grads_norm = [grad / batch_size for grad in grads_norm] # type: ignore
+            gradients["loss_norm"] = grads_norm
 
-        return gradients, loss
+        # ---- #
+
+        return values, loss, gradients
 
     def eval_step(
             self,
@@ -226,19 +251,19 @@ class NeuralDice(object):
             batch_size: int,
             target_policy: Union[tf_policy.TFPolicy, None] = None):
 
-        gradients, loss = self.get_gradients(
+        values, loss, gradients = self.get_gradients(
             env_step_init, env_step, env_step_next, batch_size, target_policy, )
 
         self.optimizer_primal.apply_gradients(
-            zip(gradients["primal"], self.network_primal.variables), )
+            zip(gradients["loss_primal"], self.network_primal.variables), )
 
         self.optimizer_dual.apply_gradients(
-            zip(gradients["dual"], self.network_dual.variables), )
+            zip(gradients["loss_dual"], self.network_dual.variables), )
 
-        if "norm" in gradients.keys():
+        if "loss_norm" in gradients.keys():
             self.optimizer_norm.apply_gradients( # type: ignore
-                zip(gradients["norm"], [self.network_norm]), )
+                zip(gradients["loss_norm"], [self.network_norm]), )
 
-        return gradients, loss
+        return values, loss, gradients
 
 # ---------------------------------------------------------------- #
