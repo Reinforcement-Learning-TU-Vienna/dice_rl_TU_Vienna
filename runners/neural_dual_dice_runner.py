@@ -21,7 +21,7 @@ class NeuralDualDiceRunner(NeuralDiceRunner):
         dataset, dataset_spec=None, target_policy=None,
         save_dir=None,
         by="steps", analytical_solver=None,
-        env_step_preprocessing=None,
+        env_step_preprocessing=None, aux_recorder=None, aux_recorder_pbar=None,
         verbosity=1):
 
         self.f_exponent = f_exponent
@@ -34,7 +34,7 @@ class NeuralDualDiceRunner(NeuralDiceRunner):
             dataset, dataset_spec, target_policy,
             save_dir,
             by, analytical_solver,
-            env_step_preprocessing,
+            env_step_preprocessing, aux_recorder, aux_recorder_pbar,
             verbosity,
         )
 

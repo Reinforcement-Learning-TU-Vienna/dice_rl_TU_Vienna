@@ -64,7 +64,7 @@ class NeuralDiceRunner(ABC):
             dataset, dataset_spec=None, target_policy=None,
             save_dir=None,
             by="steps", analytical_solver=None,
-            env_step_preprocessing=None,
+            env_step_preprocessing=None, aux_recorder=None, aux_recorder_pbar=None,
             verbosity=1):
 
         if seed is not None: set_random_seed(seed)
@@ -91,6 +91,8 @@ class NeuralDiceRunner(ABC):
         self.analytical_solver = analytical_solver
 
         self.env_step_preprocessing = env_step_preprocessing
+        self.aux_recorder = aux_recorder
+        self.aux_recorder_pbar = aux_recorder_pbar
 
         self.verbosity = verbosity
 
@@ -193,12 +195,12 @@ class NeuralDiceRunner(ABC):
             pbar = tqdm(pbar)
 
         for i_step in pbar:
-            env_step_init, env_step_this, env_step_next = self.get_sample()
+            env_steps = self.get_sample()
 
-            _, loss = self.estimator.eval_step(
-                env_step_init, env_step_this, env_step_next, self.batch_size, self.target_policy, )
+            values, loss, gradients = self.estimator.eval_step(
+                *env_steps, self.batch_size, self.target_policy, )
 
-            mean_loss = tf.reduce_mean(loss)
+            mean_loss = np.nanmean(loss)
             if np.isnan(mean_loss): break
 
             if i_step % self.save_interval == 0 or i_step == self.n_step - 1:
@@ -216,6 +218,18 @@ class NeuralDiceRunner(ABC):
                 d["pv_s"] = float(pv_s) # type: ignore
                 tf.summary.scalar("pv_w", pv_w)
                 d["pv_w"] = float(pv_w) # type: ignore
+
+                if self.aux_recorder is not None:
+                    aux_recordings = self.aux_recorder(
+                        self.estimator,
+                        env_steps, values, loss, gradients, )
+
+                    for k, v in aux_recordings.items():
+                        tf.summary.scalar(k, v)
+
+                    if self.aux_recorder_pbar is not None:
+                        for k in self.aux_recorder_pbar:
+                            d[k] = aux_recordings[k]
 
                 if self.analytical_solver is not None:
                     errors = self.get_errors(
@@ -271,11 +285,9 @@ class NeuralDiceRunner(ABC):
         else:
             raise NotImplementedError
 
-        A = env_step_init, env_step_this, env_step_next
-        B = [
-            self.preprocess_env_step(env_step) for env_step in A
-        ]
-        env_step_init, env_step_this, env_step_next = B
+        env_step_init = self.preprocess_env_step(env_step_init)
+        env_step_this = self.preprocess_env_step(env_step_this)
+        env_step_next = self.preprocess_env_step(env_step_next)
 
         return env_step_init, env_step_this, env_step_next
 
