@@ -36,7 +36,7 @@ class TabularCoinDice(object):
                dataset_spec,
                gamma: Union[float, tf.Tensor],
                reward_fn: Optional[Callable] = None,
-               solve_for_state_action_ratio: bool = True,
+               obs_act: bool = True,
                divergence_limit: Union[float, np.ndarray, tf.Tensor] = 0.0,
                divergence_type: Text = 'rkl',
                nu_learning_rate: Union[float, tf.Tensor] = 0.1,
@@ -50,7 +50,7 @@ class TabularCoinDice(object):
       gamma: The discount factor to use.
       reward_fn: A function that takes in an EnvStep and returns the reward for
         that step. If not specified, defaults to just EnvStep.reward.
-      solve_for_state_action_ratio: Whether to solve for state-action density
+      obs_act: Whether to solve for state-action density
         ratio. Defaults to True. When solving an environment with a large
         state/action space (taxi), better to set this to False to avoid OOM
         issues.
@@ -70,11 +70,11 @@ class TabularCoinDice(object):
       reward_fn = lambda env_step: env_step.reward
     self._reward_fn = reward_fn
 
-    self._solve_for_state_action_ratio = solve_for_state_action_ratio
-    if (not self._solve_for_state_action_ratio and
+    self._obs_act = obs_act
+    if (not self._obs_act and
         not self._dataset_spec.has_log_probability()):
       raise ValueError('Dataset must contain log-probability when '
-                       'solve_for_state_action_ratio is False.')
+                       'obs_act is False.')
 
     # Get number of states/actions.
     observation_spec = self._dataset_spec.observation
@@ -88,7 +88,7 @@ class TabularCoinDice(object):
     self._num_actions = action_spec.maximum + 1
     self._dimension = 1 + (
         self._num_states * self._num_actions
-        if self._solve_for_state_action_ratio else self._num_states)
+        if self._obs_act else self._num_states)
 
     # For learning data weight
     self._divergence_limit = tf.convert_to_tensor(
@@ -126,13 +126,13 @@ class TabularCoinDice(object):
     self._limit_episodes = limit_episodes
 
   def _get_index(self, state, action):
-    if self._solve_for_state_action_ratio:
+    if self._obs_act:
       return state * self._num_actions + action
     else:
       return state
 
   def _get_state_action_counts(self, env_step):
-    if self._solve_for_state_action_ratio:
+    if self._obs_act:
       index = env_step.observation * self._num_actions + env_step.action
       dim = self._num_states * self._num_actions
     else:
@@ -259,7 +259,7 @@ class TabularCoinDice(object):
 
     target_log_probabilities = target_policy.distribution(
         tfagents_env_step).action.log_prob(env_step.action) # type: ignore
-    if not self._solve_for_state_action_ratio:
+    if not self._obs_act:
       policy_ratio = tf.exp(target_log_probabilities -
                             env_step.get_log_probability())
     else:

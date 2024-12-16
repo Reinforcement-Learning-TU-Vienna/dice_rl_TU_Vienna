@@ -11,19 +11,19 @@ from dice_rl_TU_Vienna.estimators.neural.neural_dice import NeuralDice
 class NeuralGenDice(NeuralDice):
     def get_loss(
             self,
-            initial_primal_values, primal_values, next_primal_values,
-            dual_values,
+            v_init, v, v_next,
+            w,
             discounts_policy_ratio):
 
         g = self.gamma
         g_prime = discounts_policy_ratio
-        v_0 = initial_primal_values
-        v = primal_values
-        v_prime = next_primal_values
-        w = dual_values
+        v_0 = v_init
+        v = v
+        v_prime = v_next
+        w = w
 
-        lam = self.regularizer_norm
-        u = self.network_norm
+        lam = self.lam
+        u = self.u
 
         x = (1 - g) * v_0 # type: ignore
         y = w * ( g_prime * v_prime - v )
@@ -36,31 +36,31 @@ class NeuralGenDice(NeuralDice):
     def __init__(
             self,
             dataset_spec,
-            network_primal,
-            network_dual,
-            optimizer_primal,
-            optimizer_dual,
-            optimizer_norm,
+            v,
+            w,
+            v_optimizer,
+            w_optimizer,
+            u_optimizer,
             gamma: Union[float, tf.Tensor],
             reward_fn: Optional[Callable] = None,
-            solve_for_state_action_ratio: bool = True,
-            n_samples: Optional[int] = None,
-            regularizer_primal: float = 0.0,
-            regularizer_dual: float = 0.0,
-            regularizer_norm: float = 1.0,
+            obs_act: bool = True,
+            num_samples: Optional[int] = None,
+            v_regularizer: float = 0.0,
+            w_regularizer: float = 0.0,
+            lam: float = 1.0,
         ):
 
         super().__init__(
             dataset_spec,
-            network_primal, network_dual,
-            optimizer_primal, optimizer_dual,
+            v, w,
+            v_optimizer, w_optimizer,
             gamma, reward_fn,
-            solve_for_state_action_ratio, n_samples,
-            regularizer_primal, regularizer_dual,
+            obs_act, num_samples,
+            v_regularizer, w_regularizer,
         )
 
-        self.network_norm = tf.Variable(1.0)
-        self.optimizer_norm = optimizer_norm
-        self.regularizer_norm = regularizer_norm
+        self.u = tf.Variable(1.0)
+        self.u_optimizer = u_optimizer
+        self.lam = lam
 
 # ---------------------------------------------------------------- #

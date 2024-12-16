@@ -14,9 +14,9 @@ class NeuralDualDiceRunner(NeuralDiceRunner):
     def __init__(
         self,
         gamma, num_steps, batch_size, seed,
-        primal_hidden_dims, dual_hidden_dims,
-        primal_learning_rate, dual_learning_rate,
-        regularizer_primal, regularizer_dual,
+        v_hidden_dims, w_hidden_dims,
+        v_learning_rate, w_learning_rate,
+        v_regularizer, w_regularizer,
         f_exponent, # new
         dataset, dataset_spec=None, target_policy=None,
         save_dir=None,
@@ -28,9 +28,9 @@ class NeuralDualDiceRunner(NeuralDiceRunner):
 
         super().__init__(
             gamma, num_steps, batch_size, seed,
-            primal_hidden_dims, dual_hidden_dims,
-            primal_learning_rate, dual_learning_rate,
-            regularizer_primal, regularizer_dual,
+            v_hidden_dims, w_hidden_dims,
+            v_learning_rate, w_learning_rate,
+            v_regularizer, w_regularizer,
             dataset, dataset_spec, target_policy,
             save_dir,
             by, analytical_solver,
@@ -50,14 +50,14 @@ class NeuralDualDiceRunner(NeuralDiceRunner):
         
         self.estimator = NeuralDualDice(
             self.dataset_spec,
-            network_primal=pn,
-            network_dual=dn,
-            optimizer_primal=po,
-            optimizer_dual=do,
+            v=pn,
+            w=dn,
+            v_optimizer=po,
+            w_optimizer=do,
             gamma=self.gamma,
             f_exponent=self.f_exponent,
-            regularizer_primal=self.regularizer_primal,
-            regularizer_dual=self.regularizer_dual,
+            v_regularizer=self.v_regularizer,
+            w_regularizer=self.w_regularizer,
         )
  
  # ---------------------------------------------------------------- #

@@ -160,7 +160,7 @@ class NeuralCoinDice(NeuralDualDice):
 
     discounts = self._gamma * next_env_step.discount
     policy_ratio = 1.0
-    if not self._solve_for_state_action_ratio:
+    if not self._obs_act:
       tfagents_step = dataset_lib.convert_to_tfagents_timestep(env_step)
       policy_log_probabilities = policy.distribution(
           tfagents_step).action.log_prob(env_step.action)

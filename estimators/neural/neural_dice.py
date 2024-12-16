@@ -18,67 +18,67 @@ class NeuralDice(object):
     def __init__(
             self,
             dataset_spec,
-            network_primal,
-            network_dual,
-            optimizer_primal,
-            optimizer_dual,
+            v,
+            w,
+            v_optimizer,
+            w_optimizer,
             gamma: Union[float, tf.Tensor],
             reward_fn: Optional[Callable] = None,
-            solve_for_state_action_ratio: bool = True,
-            n_samples: Optional[int] = None,
-            regularizer_primal: float = 0.0,
-            regularizer_dual: float = 0.0,
+            obs_act: bool = True,
+            num_samples: Optional[int] = None,
+            v_regularizer: float = 0.0,
+            w_regularizer: float = 0.0,
         ):
 
         self.dataset_spec = dataset_spec
 
-        self.network_primal = network_primal
-        self.network_primal.create_variables()
+        self.v = v
+        self.v.create_variables()
 
-        self.network_dual = network_dual
-        self.network_dual.create_variables()
+        self.w = w
+        self.w.create_variables()
 
-        self.network_norm = None
+        self.u = None
 
-        self.optimizer_primal = optimizer_primal
-        self.optimizer_dual = optimizer_dual
+        self.v_optimizer = v_optimizer
+        self.w_optimizer = w_optimizer
 
-        self.regularizer_primal = regularizer_primal
-        self.regularizer_dual = regularizer_dual
+        self.v_regularizer = v_regularizer
+        self.w_regularizer = w_regularizer
 
         self.gamma = gamma
         self.reward_fn = reward_fn if reward_fn is None \
             else lambda env_step: env_step.reward
-        self.n_samples = n_samples
+        self.num_samples = num_samples
 
-        self.solve_for_state_action_ratio = solve_for_state_action_ratio
-        A = not self.solve_for_state_action_ratio
+        self.obs_act = obs_act
+        A = not self.obs_act
         B = not self.dataset_spec.has_log_probability()
         if A and B: raise ValueError(
-            'Dataset must contain log-probability when solve_for_state_action_ratio is False.')
+            'Dataset must contain log-probability when obs_act is False.')
 
         self.categorical_action = is_categorical_spec(
             self.dataset_spec.action)
         A = not self.categorical_action
-        B = self.n_samples is None
-        if A and B: self.n_samples = 1
+        B = self.num_samples is None
+        if A and B: self.num_samples = 1
 
-        self.regularizer_primal = regularizer_primal
-        self.regularizer_dual   = regularizer_dual
+        self.v_regularizer = v_regularizer
+        self.w_regularizer   = w_regularizer
 
     def get_value(self, network, env_step):
         x = env_step.observation, env_step.action
         y = env_step.observation,
-        A = self.solve_for_state_action_ratio
+        A = self.obs_act
         inputs = x if A else y
 
         value, _ = network(inputs)
         return value
 
     def get_average_value(self, network, env_step, policy=None):
-        if self.solve_for_state_action_ratio:
+        if self.obs_act:
 
-            if self.categorical_action and self.n_samples is None:
+            if self.categorical_action and self.num_samples is None:
                 action_weights = get_probs(env_step, policy)
 
                 action_dtype = self.dataset_spec.action.dtype
@@ -93,7 +93,7 @@ class NeuralDice(object):
 
             else:
                 batch_size = tf.shape(env_step.observation)[0] # type: ignore
-                num_actions = self.n_samples
+                num_actions = self.num_samples
                 action_weights = tf.ones([batch_size, num_actions]) / num_actions
 
                 tfagents_step = convert_to_tfagents_timestep(env_step)
@@ -138,39 +138,25 @@ class NeuralDice(object):
             env_step_init, env_step, env_step_next,
             policy=None):
 
-        primal_values_init = self.get_average_value(
-            self.network_primal, env_step_init, policy)
-
-        primal_values = self.get_value(
-            self.network_primal, env_step)
-
-        primal_values_next = self.get_average_value(
-            self.network_primal, env_step_next, policy)
-
-        dual_values = self.get_value(
-            self.network_dual, env_step)
-
-        discounts = self.gamma # * env_step_next.discount
+        v_init = self.get_average_value(self.v, env_step_init, policy)
+        v      = self.get_value        (self.v, env_step)
+        v_next = self.get_average_value(self.v, env_step_next, policy)
+        w      = self.get_value        (self.w, env_step)
 
         policy_ratio = 1.0
-        if not self.solve_for_state_action_ratio:
+        if not self.obs_act:
             A = get_probs_log(env_step, policy)
             B = env_step.get_log_probability()
             policy_ratio = tf.exp(A - B)
 
         discounts_policy_ratio = reverse_broadcast(
-            discounts * policy_ratio, primal_values) # type: ignore
+            self.gamma * policy_ratio, v) # type: ignore
 
-        return (
-            primal_values_init, primal_values, primal_values_next,
-            dual_values,
-            discounts_policy_ratio,
-        )
+        return v_init, v, v_next, w, discounts_policy_ratio
 
     def get_loss(
             self,
-            primal_values_init, primal_values, primal_values_next,
-            dual_values,
+            v_init, v, v_next, w,
             discounts_policy_ratio):
 
         raise NotImplementedError
@@ -182,64 +168,64 @@ class NeuralDice(object):
             target_policy: Union[tf_policy.TFPolicy, None] = None):
 
         with tf.GradientTape(watch_accessed_variables=False, persistent=True) as tape:
-            tape.watch([variable.value for variable in self.network_primal.variables])
-            tape.watch([variable.value for variable in self.network_dual  .variables])
-            if self.network_norm is not None:
-                tape.watch([self.network_norm])
+            tape.watch([variable.value for variable in self.v.variables])
+            tape.watch([variable.value for variable in self.w.variables])
+            if self.u is not None:
+                tape.watch([self.u])
 
             values = self.get_values(env_step_init, env_step, env_step_next, target_policy)
             loss = self.get_loss(*values)
 
-            loss_primal = -loss
-            loss_dual   =  loss
-            loss_norm   = -loss
+            v_loss = -loss
+            w_loss =  loss
+            u_loss = -loss
 
-            A = self.regularizer_primal
-            B = self.orthogonal_regularization(self.network_primal)
-            loss_primal += A * B
+            A = self.v_regularizer
+            B = self.orthogonal_regularization(self.v)
+            v_loss += A * B
 
-            A = self.regularizer_dual
-            B = self.orthogonal_regularization(self.network_dual)
-            loss_dual += A * B
+            A = self.w_regularizer
+            B = self.orthogonal_regularization(self.w)
+            w_loss += A * B
 
         gradients = {}
 
         # ---- #
         # values
 
-        primal_values_init, primal_values, primal_values_next, dual_values, _ = values
+        v_init, v, v_next, w, _ = values
 
-        grads_primal_values_init = tape.gradient(primal_values_init, self.network_primal.variables)
-        grads_primal_values      = tape.gradient(primal_values,      self.network_primal.variables)
-        grads_primal_values_next = tape.gradient(primal_values_next, self.network_primal.variables)
-        grads_dual_values        = tape.gradient(dual_values,        self.network_dual  .variables)
+        grads_v_init = tape.gradient(v_init, self.v.variables)
+        grads_v      = tape.gradient(v,      self.v.variables)
+        grads_v_next = tape.gradient(v_next, self.v.variables)
+        grads_w      = tape.gradient(w,      self.w.variables)
 
-        grads_primal_values_init = [grad / batch_size for grad in grads_primal_values_init] # type: ignore
-        grads_primal_values      = [grad / batch_size for grad in grads_primal_values]      # type: ignore
-        grads_primal_values_next = [grad / batch_size for grad in grads_primal_values_next] # type: ignore
-        grads_dual_values        = [grad / batch_size for grad in grads_dual_values]        # type: ignore
+        grads_v_init = [grad / batch_size for grad in grads_v_init] # type: ignore
+        grads_v      = [grad / batch_size for grad in grads_v]      # type: ignore
+        grads_v_next = [grad / batch_size for grad in grads_v_next] # type: ignore
+        grads_w      = [grad / batch_size for grad in grads_w]      # type: ignore
 
-        gradients["primal_values_init"] = grads_primal_values_init
-        gradients["primal_values"]      = grads_primal_values
-        gradients["primal_values_next"] = grads_primal_values_next
-        gradients["dual_values"]        = grads_dual_values
+        gradients["v_init"] = grads_v_init
+        gradients["v"]      = grads_v
+        gradients["v_next"] = grads_v_next
+        gradients["w"]      = grads_w
 
         # ---- #
         # loss
 
-        grads_loss_primal = tape.gradient(loss_primal, self.network_primal.variables)
-        grads_loss_dual   = tape.gradient(loss_dual,   self.network_dual  .variables)
+        grads_v_loss = tape.gradient(v_loss, self.v.variables)
+        grads_w_loss = tape.gradient(w_loss, self.w.variables)
 
-        grads_loss_primal = [grad / batch_size for grad in grads_loss_primal] # type: ignore
-        grads_loss_dual   = [grad / batch_size for grad in grads_loss_dual]   # type: ignore
+        grads_v_loss = [grad / batch_size for grad in grads_v_loss] # type: ignore
+        grads_w_loss = [grad / batch_size for grad in grads_w_loss] # type: ignore
 
-        gradients["loss_primal"] = grads_loss_primal
-        gradients["loss_dual"]   = grads_loss_dual
+        gradients["v_loss"] = grads_v_loss
+        gradients["w_loss"]   = grads_w_loss
 
-        if self.network_norm is not None:
-            grads_norm = tape.gradient(loss_norm, [self.network_norm])
-            grads_norm = [grad / batch_size for grad in grads_norm] # type: ignore
-            gradients["loss_norm"] = grads_norm
+        if self.u is not None:
+            grads_u = tape.gradient(u_loss, [self.u])
+            grads_u = [grad / batch_size for grad in grads_u] # type: ignore
+            gradients["u_loss"] = grads_u
 
         # ---- #
 
@@ -254,15 +240,15 @@ class NeuralDice(object):
         values, loss, gradients = self.get_gradients(
             env_step_init, env_step, env_step_next, batch_size, target_policy, )
 
-        self.optimizer_primal.apply_gradients(
-            zip(gradients["loss_primal"], self.network_primal.variables), )
+        self.v_optimizer.apply_gradients(
+            zip(gradients["v_loss"], self.v.variables), )
 
-        self.optimizer_dual.apply_gradients(
-            zip(gradients["loss_dual"], self.network_dual.variables), )
+        self.w_optimizer.apply_gradients(
+            zip(gradients["w_loss"], self.w.variables), )
 
-        if "loss_norm" in gradients.keys():
-            self.optimizer_norm.apply_gradients( # type: ignore
-                zip(gradients["loss_norm"], [self.network_norm]), )
+        if "u_loss" in gradients.keys():
+            self.u_optimizer.apply_gradients( # type: ignore
+                zip(gradients["u_loss"], [self.u]), )
 
         return values, loss, gradients
 

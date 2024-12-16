@@ -7,19 +7,19 @@ from dice_rl_TU_Vienna.estimators.neural.neural_gen_dice import NeuralGenDice
 class NeuralGradientDice(NeuralGenDice):
     def get_loss(
             self,
-            initial_primal_values, primal_values, next_primal_values,
-            dual_values,
+            v_init, v, v_next,
+            w,
             discounts_policy_ratio):
 
         g = self.gamma
         g_prime = discounts_policy_ratio
-        v_0 = initial_primal_values
-        v = primal_values
-        v_prime = next_primal_values
-        w = dual_values
+        v_0 = v_init
+        v = v
+        v_prime = v_next
+        w = w
 
-        lam = self.regularizer_norm
-        u = self.network_norm
+        lam = self.lam
+        u = self.u
 
         x = (1 - g) * v_0 # type: ignore
         y = w * ( g_prime * v_prime - v )

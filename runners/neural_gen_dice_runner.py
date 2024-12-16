@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 
-from tensorflow.keras.optimizers import Adam # type: ignore
+from tensorflow.keras.optimizers import SGD # type: ignore
 
 from dice_rl_TU_Vienna.estimators.neural.neural_gen_dice import NeuralGenDice
 from dice_rl_TU_Vienna.runners.neural_dice_runner import NeuralDiceRunner, lr_to_str
@@ -16,24 +16,24 @@ class NeuralGenDiceRunner(NeuralDiceRunner):
     def __init__(
         self,
         gamma, num_steps, batch_size, seed,
-        primal_hidden_dims, dual_hidden_dims,
-        primal_learning_rate, dual_learning_rate,
-        regularizer_primal, regularizer_dual,
-        norm_learning_rate, regularizer_norm, # new
+        v_hidden_dims, w_hidden_dims,
+        v_learning_rate, w_learning_rate,
+        v_regularizer, w_regularizer,
+        u_learning_rate, lam, # new
         dataset, dataset_spec=None, target_policy=None,
         save_dir=None,
         by="steps", analytical_solver=None,
         env_step_preprocessing=None, aux_recorder=None, aux_recorder_pbar=None,
         verbosity=1):
 
-        self.norm_learning_rate = norm_learning_rate
-        self.regularizer_norm = regularizer_norm
+        self.u_learning_rate = u_learning_rate
+        self.lam = lam
 
         super().__init__(
             gamma, num_steps, batch_size, seed,
-            primal_hidden_dims, dual_hidden_dims,
-            primal_learning_rate, dual_learning_rate,
-            regularizer_primal, regularizer_dual,
+            v_hidden_dims, w_hidden_dims,
+            v_learning_rate, w_learning_rate,
+            v_regularizer, w_regularizer,
             dataset, dataset_spec, target_policy,
             save_dir,
             by, analytical_solver,
@@ -43,33 +43,32 @@ class NeuralGenDiceRunner(NeuralDiceRunner):
 
     @property
     def hparam_str_evaluation(self):
-        nlr = lr_to_str(self.norm_learning_rate)
+        nlr = lr_to_str(self.u_learning_rate)
 
         return "_".join([
             super().hparam_str_evaluation,
-            f"nlr{nlr}", f"nreg{self.regularizer_norm}",
+            f"nlr{nlr}", f"nreg{self.lam}",
         ])
 
     def set_up_estimator(self):
-        pn, dn, po, do = super().set_up_estimator()
+        v, w, v_optimizer, w_optimizer = super().set_up_estimator()
 
-        no = Adam(
-            self.norm_learning_rate, clipvalue=1.0)
+        u_optimizer = SGD(self.u_learning_rate)
 
         self.estimator = NeuralGenDice(
             self.dataset_spec,
-            network_primal=pn,
-            network_dual=dn,
-            optimizer_primal=po,
-            optimizer_dual=do,
-            optimizer_norm=no,
+            v=v,
+            w=w,
+            v_optimizer=v_optimizer,
+            w_optimizer=w_optimizer,
+            u_optimizer=u_optimizer,
             gamma=self.gamma,
-            regularizer_primal=self.regularizer_primal,
-            regularizer_dual=self.regularizer_dual,
-            regularizer_norm=self.regularizer_norm,
+            v_regularizer=self.v_regularizer,
+            w_regularizer=self.w_regularizer,
+            lam=self.lam,
         )
 
-        return pn, dn, po, do, no
+        return v, w, v_optimizer, w_optimizer, u_optimizer
 
     @property
     def dual_output_activation_fn(self): return tf.math.square

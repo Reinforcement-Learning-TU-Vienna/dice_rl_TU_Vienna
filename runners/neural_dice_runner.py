@@ -60,7 +60,7 @@ class NeuralDiceRunner(ABC):
             gamma, n_step, batch_size, seed,
             hidden_dims_primal, hidden_dims_dual,
             learning_rate_primal, learning_rate_dual,
-            regularizer_primal, regularizer_dual,
+            v_regularizer, w_regularizer,
             dataset, dataset_spec=None, target_policy=None,
             save_dir=None,
             by="steps", analytical_solver=None,
@@ -80,8 +80,8 @@ class NeuralDiceRunner(ABC):
         self.learning_rate_primal = learning_rate_primal
         self.learning_rate_dual   = learning_rate_dual
 
-        self.regularizer_primal = regularizer_primal
-        self.regularizer_dual   = regularizer_dual
+        self.v_regularizer = v_regularizer
+        self.w_regularizer = w_regularizer
 
         self.dataset = dataset
         self.dataset_spec = dataset_spec if dataset_spec is not None else dataset.spec
@@ -139,31 +139,31 @@ class NeuralDiceRunner(ABC):
             f"batchs{self.batch_size}", f"seed{self.seed}",
             f"hdp{self.hidden_dims_primal}", f"hdd{self.hidden_dims_dual}",
             f"lrp{lrp}", f"lrd{lrd}",
-            f"regp{self.regularizer_primal}", f"regd{self.regularizer_dual}",
+            f"regp{self.v_regularizer}", f"regd{self.w_regularizer}",
         ])
 
     def set_up_estimator(self):
         input_tensor_spec = self.dataset_spec.observation, self.dataset_spec.action
 
-        network_primal = ValueNetwork(
+        v = ValueNetwork(
             input_tensor_spec,
             fc_layer_params=self.hidden_dims_primal,
         )
 
-        network_dual = ValueNetwork(
+        w = ValueNetwork(
             input_tensor_spec,
             fc_layer_params=self.hidden_dims_dual,
             output_activation_fn=self.dual_output_activation_fn,
         )
 
-        optimizer_primal = SGD(self.learning_rate_primal)
-        optimizer_dual   = SGD(self.learning_rate_dual)
+        v_optimizer = SGD(self.learning_rate_primal)
+        w_optimizer = SGD(self.learning_rate_dual)
 
         self.estimator: NeuralDice
 
         return (
-            network_primal, network_dual,
-            optimizer_primal, optimizer_dual,
+            v, w,
+            v_optimizer, w_optimizer,
         )
 
     @property
@@ -234,7 +234,7 @@ class NeuralDiceRunner(ABC):
                 if self.analytical_solver is not None:
                     errors = self.get_errors(
                         pv_approx={ "s": pv_s, "w": pv_w, },
-                        sdc_approx_network=self.estimator.network_dual,
+                        sdc_approx_network=self.estimator.w,
                     )
 
                     for k, v in errors.items():
@@ -313,10 +313,10 @@ class NeuralDiceRunner(ABC):
             env_step_preprocessed = self.preprocess_env_step(env_step)
 
             dual_value = self.estimator.get_value(
-                self.estimator.network_dual, env_step_preprocessed, )
+                self.estimator.w, env_step_preprocessed, )
 
             policy_ratio = 1.0
-            if not self.estimator.solve_for_state_action_ratio:
+            if not self.estimator.obs_act:
                 A = get_probs(env_step, target_policy)
                 B = env_step.get_log_probability()
                 policy_ratio = tf.exp(A - B)

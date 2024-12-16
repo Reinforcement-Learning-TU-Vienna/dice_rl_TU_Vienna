@@ -16,8 +16,8 @@ def aux_recorder_cos_angle(
         estimator,
         env_steps, values, loss, gradients):
 
-    x = flatten_grads(gradients["primal_values"])
-    y = flatten_grads(gradients["primal_values_next"])
+    x = flatten_grads(gradients["v"])
+    y = flatten_grads(gradients["v_next"])
 
     a = np.dot(x, y) # type: ignore
     b = np.linalg.norm(x) * np.linalg.norm(y) # type: ignore

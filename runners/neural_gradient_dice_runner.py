@@ -12,22 +12,22 @@ class NeuralGradientDiceRunner(NeuralGenDiceRunner):
     def __name__(self): return "NeuralGradientDice"
 
     def set_up_estimator(self):
-        pn, dn, po, do, no = super().set_up_estimator()
+        v, w, v_optimizer, w_optimizer, u_optimizer = super().set_up_estimator()
 
         self.estimator = NeuralGradientDice(
             self.dataset_spec,
-            network_primal=pn,
-            network_dual=dn,
-            optimizer_primal=po,
-            optimizer_dual=do,
-            optimizer_norm=no,
+            v=v,
+            w=w,
+            v_optimizer=v_optimizer,
+            w_optimizer=w_optimizer,
+            u_optimizer=u_optimizer,
             gamma=self.gamma,
-            regularizer_primal=self.regularizer_primal,
-            regularizer_dual=self.regularizer_dual,
-            regularizer_norm=self.regularizer_norm,
+            v_regularizer=self.v_regularizer,
+            w_regularizer=self.w_regularizer,
+            lam=self.lam,
         )
 
-        return pn, dn, po, do, no
+        return v, w, v_optimizer, w_optimizer, u_optimizer
     
     @property
     def dual_output_activation_fn(self): return tf.identity
