@@ -1,9 +1,14 @@
 # ---------------------------------------------------------------- #
 
 latex_gamma = r"\gamma"
+latex_lambda = r"\lambda"
 
-latex_rho_pi = r"\rho^\pi"
-latex_rho_pi_hat = r"\hat{\rho}^\pi"
+latex_rho_pi   = r"\rho^\pi"
+latex_rho_pi_s = r"\rho^\pi_\text{S}"
+latex_rho_pi_w = r"\rho^\pi_\text{W}"
+latex_rho_pi_hat   = r"\hat{\rho}^\pi"
+latex_rho_pi_hat_s = r"\hat{\rho}^\pi_\text{S}"
+latex_rho_pi_hat_w = r"\hat{\rho}^\pi_\text{W}"
 
 latex_w_pi_D = r"w_{\pi / D}"
 latex_w_pi_D_hat = r"\hat{w}_{\pi / D}"
@@ -41,11 +46,25 @@ def latex_pv(gamma=None):
     else:               s = f"{latex_rho_pi}({latex_gamma} = {gamma})"
     return s
 
-def latex_pv_approx(gamma=None):
-    if gamma == "":     s = f"{latex_rho_pi_hat}"
-    elif gamma is None: s = f"{latex_rho_pi_hat}({latex_gamma})"
-    else:               s = f"{latex_rho_pi_hat}({latex_gamma} = {gamma})"
+def latex_pv_approx(gamma=None, weighted=None):
+
+    if weighted is None:
+        x = latex_rho_pi_hat
+    else:
+        if weighted: x = latex_rho_pi_hat_w
+        else:        x = latex_rho_pi_hat_s
+
+    if gamma == "":     s = f"{x}"
+    elif gamma is None: s = f"{x}({latex_gamma})"
+    else:               s = f"{x}({latex_gamma} = {gamma})"
+ 
     return s
+
+def latex_pv_approx_s(gamma=None):
+    return latex_pv_approx(gamma, False)
+
+def latex_pv_approx_w(gamma=None):
+    return latex_pv_approx(gamma, True)
 
 def latex_sdc(gamma=None):
     if gamma == "":     s = f"{latex_w_pi_D}"
@@ -67,11 +86,17 @@ def latex_pv_scaled(gamma=None):
     return s
 
 
-def latex_pv_error(gamma=None):
-    x = latex_pv_approx(gamma)
+def latex_pv_error(gamma=None, weighted=None):
+    x = latex_pv_approx(gamma, weighted)
     y = latex_pv       (gamma)
     s = f"| {x} - {y} |"
     return s
+
+def latex_pv_error_s(gamma=None):
+    return latex_pv_error(gamma, False)
+
+def latex_pv_error_w(gamma=None):
+    return latex_pv_error(gamma, True)
 
 def latex_sdc_Lp_error(p, gamma=None):
     x = latex_sdc_approx(gamma)
@@ -117,12 +142,15 @@ def dollar(f):
 latex_labels = {
     "pv":  dollar(latex_pv),
     "sdc": dollar(latex_sdc),
-    "pv_approx":  dollar(latex_pv_approx),
+    "pv_approx_s":  dollar(latex_pv_approx_s),
+    "pv_approx_w":  dollar(latex_pv_approx_w),
     "sdc_approx": dollar(latex_sdc_approx),
     #
-    "pv_scaled":  dollar(latex_pv_scaled),
+    "pv_scaled": dollar(latex_pv_scaled),
     #
     "pv_error":         dollar(latex_pv_error),
+    "pv_error_s":       dollar(latex_pv_error_s),
+    "pv_error_w":       dollar(latex_pv_error_w),
     "sdc_L1_error":     dollar(latex_sdc_L1_error),
     "sdc_L2_error":     dollar(latex_sdc_L2_error),
     "bellman_L1_error": dollar(latex_bellman_L1_error),
