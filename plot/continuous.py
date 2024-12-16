@@ -61,7 +61,7 @@ def plot_log(logs, infos, suptitle=None, save_dir=None, file_name=None):
         nrows=n_rows,
         ncols=n_cols,
         squeeze=False,
-        sharex=True,
+        tight_layout=True,
         figsize=(6 * len(logs_array), 8))
 
     if suptitle is not None: plt.suptitle(suptitle)
@@ -76,7 +76,13 @@ def plot_log(logs, infos, suptitle=None, save_dir=None, file_name=None):
                 x = logs["data"][tag]["steps"]
                 y = logs["data"][tag]["values"]
 
-                label = latex_labels[tag]("")
+                xmin = min(x)
+                xmax = max(x)
+
+                k = tag
+                if tag == "pv_s": k = "pv_approx_s"
+                if tag == "pv_w": k = "pv_approx_w"
+                label = latex_labels[k]("")
                 color = colors[i]
                 alpha = 0.1 if "n_moving_averages" in info.keys() else 1
 
@@ -86,8 +92,6 @@ def plot_log(logs, infos, suptitle=None, save_dir=None, file_name=None):
                     if info["plot_type"] in ["semilogx", "loglog"]: ax.set_xscale("log")
                     if info["plot_type"] in ["semilogy", "loglog"]: ax.set_yscale("log")
 
-                xmin = min(x)
-                xmax = max(x)
 
                 if "n_moving_averages" in info.keys():
                     n_moving_average = info["n_moving_averages"]
@@ -109,6 +113,9 @@ def plot_log(logs, infos, suptitle=None, save_dir=None, file_name=None):
             if "ylabel" in info.keys():
                 if display_description:
                     ax.set_ylabel(info["ylabel"])
+
+            if "xlim" in info.keys():
+                ax.set_xlim(info["xlim"])
 
             if "ylim" in info.keys():
                 ax.set_ylim(info["ylim"])
@@ -142,6 +149,7 @@ hparam_str_dict = {
     "gam": "gamma",
     "nstep": "number-of-steps",
     "batchs": "batch-size",
+    "seed": "seed",
     "hdp": "hidden-dimensions-primal",
     "hdd": "hidden-dimensions-dual",
     "lrp": "learning-rate-primal",
@@ -179,6 +187,9 @@ def get_plot_logs(
         estimator_name, hparam_str_evaluation,
         #
         error_tags=None, plot_types=None,
+        #
+        title=None,
+        xlim=None,
         ylim_1=None, ylim_2=None, ylim_3=None,
         n_ma_1=None, n_ma_2=None, n_ma_3=None,
         #
@@ -196,14 +207,18 @@ def get_plot_logs(
 
     l = list_ify(
         hparam_str_evaluation, file_name,
+        title,
+        xlim,
         ylim_1, ylim_2, ylim_3,
         n_ma_1, n_ma_2, n_ma_3,
     )
 
     d = {
         "hparam_str_evaluation": l[0], "file_name": l[1],
-        "ylim_1": l[2], "ylim_2": l[3], "ylim_3": l[4],
-        "n_ma_1": l[5], "n_ma_2": l[6], "n_ma_3": l[7],
+        "title": l[2],
+        "xlim": l[3],
+        "ylim_1": l[4], "ylim_2": l[5], "ylim_3": l[6],
+        "n_ma_1": l[7], "n_ma_2": l[8], "n_ma_3": l[9],
     }
 
     # -------------------------------- #
@@ -245,26 +260,15 @@ def get_plot_logs(
 
     infos = []
 
-    Z = d["ylim_1"], d["ylim_2"], d["ylim_3"], d["n_ma_1"], d["n_ma_2"], d["n_ma_3"], gammas, lambdas
+    Z = d["title"], d["xlim"], d["ylim_1"], d["ylim_2"], d["ylim_3"], d["n_ma_1"], d["n_ma_2"], d["n_ma_3"], gammas, lambdas
     for z in safe_zip(*Z):
-        ylim_1, ylim_2, ylim_3, n_ma_1, n_ma_2, n_ma_3, g, l = z
+        title, xlim_, ylim_1, ylim_2, ylim_3, n_ma_1, n_ma_2, n_ma_3, g, l = z
 
         ylabel =[ "policy value", "errors", "loss", ]
 
-        latex_gamma = r"\gamma"
-        gamma_equals = f"${latex_gamma} = {g}$"
-
-        latex_lambda = r"\lambda"
-        lambda_equals = f"${latex_lambda} = {l}$"
-
-        title = [
-            ", ".join( [gamma_equals] + [lambda_equals] * (l is not None) + [f"n-moving-averages={n_ma}"] )
-                for n_ma in [n_ma_1, n_ma_2, n_ma_3]
-        ]
-
-        i_1 = { "tags": ["pv"],     "title": title[0], "ylabel": ylabel[0], "ylim": ylim_1, "plot_type": plot_types[0], "n_moving_averages": n_ma_1, }
-        i_2 = { "tags": error_tags, "title": title[1], "ylabel": ylabel[1], "ylim": ylim_2, "plot_type": plot_types[1], "n_moving_averages": n_ma_2, }
-        i_3 = { "tags": ["loss"],   "title": title[2], "ylabel": ylabel[2], "ylim": ylim_3, "plot_type": plot_types[2], "n_moving_averages": n_ma_3, }
+        i_1 = { "tags": ["pv_s", "pv_w"], "title": title[0], "ylabel": ylabel[0], "xlim": xlim_, "ylim": ylim_1, "plot_type": plot_types[0], "n_moving_averages": n_ma_1, }
+        i_2 = { "tags": error_tags,       "title": title[1], "ylabel": ylabel[1], "xlim": xlim_, "ylim": ylim_2, "plot_type": plot_types[1], "n_moving_averages": n_ma_2, }
+        i_3 = { "tags": ["loss"],         "title": title[2], "ylabel": ylabel[2], "xlim": xlim_, "ylim": ylim_3, "plot_type": plot_types[2], "n_moving_averages": n_ma_3, }
 
         i_1["baselines"] = get_pv_baselines(gamma=g)
         i = [i_1] + [i_2] * ( len(error_tags) > 0 ) + [i_3]
@@ -277,7 +281,8 @@ def get_plot_logs(
 
     parts_d  = {}
 
-    parts_d[ hparam_str_dict["nstep"]  ] = hparams["nstep"]
+    parts_d[ hparam_str_dict["gam"] ] = hparams["gam"]
+
     parts_d[ hparam_str_dict["batchs"] ] = hparams["batchs"]
 
     hd = [ hparams["hdp"], hparams["hdd"], ]
