@@ -1,12 +1,10 @@
 # ---------------------------------------------------------------- #
 
-from dice_rl_TU_Vienna.specs import get_observation_action_spec
-
 from gymnasium.spaces import Discrete, Box
 
 # ---------------------------------------------------------------- #
 
-def get_space_specs(space):
+def get_specs_space(space):
     shape = space.shape
     dtype = space.dtype
  
@@ -23,16 +21,13 @@ def get_space_specs(space):
 
     assert min is not None and max is not None
 
-    return shape, dtype, min, max
+    return { "shape": shape, "dtype": dtype, "min": min, "max": max, }
 
 
-def get_observation_action_spec_from_env(env):
-    obs_shape, obs_dtype, obs_min, obs_max = get_space_specs(env.observation_space)
-    act_shape, act_dtype, act_min, act_max = get_space_specs(env.action_space)
-
-    return get_observation_action_spec(
-        obs_shape, obs_dtype, obs_min, obs_max,
-        act_shape, act_dtype, act_min, act_max,
-    )
+def get_specs_env(env):
+    return {
+        "obs": get_specs_space(env.observation_space),
+        "act": get_specs_space(env.action_space),
+    }
 
 # ---------------------------------------------------------------- #

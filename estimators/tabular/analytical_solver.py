@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dice_rl_TU_Vienna.estimators.tabular.bellman_equations import (
     solve_forwards_bellman_equations, solve_backwards_bellman_equations, )
 
-from utils.numpy import safe_divide
+from dice_rl_TU_Vienna.utils.numpy import safe_divide
 
 # ---------------------------------------------------------------- #
 
@@ -16,10 +16,10 @@ class AnalyticalSolver(ABC):
     @property
     def __name__(self): return "analytical"
 
-    def __init__(self, num_obs, n_act):
-        self.num_obs = num_obs
+    def __init__(self, n_obs, n_act):
+        self.n_obs = n_obs
         self.n_act = n_act
-        self.dim = self.num_obs * self.n_act
+        self.dim = self.n_obs * self.n_act
 
         self.d0, self.dD, self.P, self.r = self.get_distributions() # type: ignore
 
@@ -56,26 +56,26 @@ class AnalyticalSolver(ABC):
     
     def solve(self, gamma, primal_dual="both", projected=False, pv_max_duality_gap=1e-10):
         if primal_dual == "both":
-            pv_p, Q,   info_p = self.solve(gamma, primal_dual="primal", projected=projected) # type: ignore
-            pv_d, sdc, info_d = self.solve(gamma, primal_dual="dual",   projected=projected) # type: ignore
+            rho_p, Q, info_p = self.solve(gamma, primal_dual="primal", projected=projected) # type: ignore
+            rho_d, w, info_d = self.solve(gamma, primal_dual="dual",   projected=projected) # type: ignore
 
-            assert np.abs(pv_p - pv_d) < pv_max_duality_gap
+            assert np.abs(rho_p - rho_d) < pv_max_duality_gap
 
-            pv = np.random.choice([pv_p, pv_d])
+            rho = np.random.choice([rho_p, rho_d])
             info = { **info_p, **info_d}
 
-            return pv, (Q, sdc), info
+            return rho, (Q, w), info
 
         elif primal_dual == "primal":
             Q, info = self.get_avf(gamma, projected=projected)
-            pv = self.get_pv_primal(gamma, Q)
-            return pv, Q, info
+            rho = self.get_pv_primal(gamma, Q)
+            return rho, Q, info
 
         elif primal_dual == "dual":
-            sdc, info = self.get_sdc(gamma, projected=projected)
-            sd = sdc * self.dD
-            pv = self.get_pv_dual(sd)
-            return pv, sdc, info
+            w, info = self.get_sdc(gamma, projected=projected)
+            sd = w * self.dD
+            rho = self.get_pv_dual(sd)
+            return rho, w, info
 
         else:
             return NotImplementedError
@@ -85,18 +85,12 @@ class AnalyticalSolver(ABC):
             gamma,
             pv_approx=None, vf_approx=None, sdc_approx=None,
             vf_approx_network=None, sdc_approx_network=None,
-            pv_exact=None, vf_exact=None, sdc_exact=None,
-            solve_if_None=False):
+            pv_exact=None, vf_exact=None, sdc_exact=None):
 
         self.assert_gamma(gamma)
 
-        if solve_if_None:
-            A = pv_exact  is None
-            B = sdc_exact is None
-            C = vf_exact  is None
-
-            if A or B or C:
-                pv_exact, (vf_exact, sdc_exact), _ = self.solve(gamma) # type: ignore
+        if None in [pv_exact, sdc_exact, vf_exact]:
+            pv_exact, (vf_exact, sdc_exact), _ = self.solve(gamma) # type: ignore
 
         if sdc_approx_network is not None:
             sdc_approx = self.network_to_vector(sdc_approx_network)
@@ -147,10 +141,10 @@ class AnalyticalSolver(ABC):
 
     def network_to_vector(self, network):
         obs = tf.convert_to_tensor(
-            np.identity(self.num_obs)[np.repeat(np.arange(self.num_obs), 2)],
+            np.identity(self.n_obs)[np.repeat(np.arange(self.n_obs), 2)],
             dtype=tf.float32)
         act = tf.convert_to_tensor(
-            np.tile(np.arange(self.n_act), self.num_obs),
+            np.tile(np.arange(self.n_act), self.n_obs),
             dtype=tf.int64)
         vector, _ = network( (obs, act) )
 

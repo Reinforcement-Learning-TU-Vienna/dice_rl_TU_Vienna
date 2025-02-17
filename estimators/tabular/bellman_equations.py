@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from utils.numpy import (
+from dice_rl_TU_Vienna.utils.numpy import (
     safe_divide, eye_like, get_eigenvalue_for_eigenvector_of,
     project_in, project_out, )
 
@@ -66,7 +66,7 @@ def solve_standard_forwards_bellman_equations_approximate(
     f_hat, info = solve_standard_forwards_bellman_equations(
         r=r_hat, P=P_hat, gamma=gamma, )
 
-    if "pv" in info.keys(): info = { "pv_hat": info["pv"], }
+    if "pv" in info.keys(): info = { "pv_approx": info["pv"], }
 
     return f_hat, info
 
@@ -80,19 +80,19 @@ def solve_backwards_bellman_equations(
     (d0_, dD_), (P_,) = project_in(mask, (d0, dD), (P,), projected)
 
     if modified:
-        sdc_, info = solve_modified_backwards_bellman_equations(
+        w_, info = solve_modified_backwards_bellman_equations(
             d0=d0_, dD=dD_, P=P_, gamma=gamma)
 
     else:
-        sd_, info = solve_standard_backwards_bellman_equations(
+        d_, info = solve_standard_backwards_bellman_equations(
             d0=d0_, P=P_, gamma=gamma)
-        sdc_ = safe_divide(sd_, dD_, zero_div_zero=-1)
+        w_ = safe_divide(d_, dD_, zero_div_zero=-1)
 
-    sdc = project_out(mask, sdc_, projected, masking_value=-1)
+    w = project_out(mask, w_, projected, masking_value=-1)
 
-    assert np.prod( (sdc == -1) == mask )
+    assert np.prod( (w == -1) == mask )
 
-    return sdc, info
+    return w, info
 
 
 def solve_standard_backwards_bellman_equations(
@@ -104,15 +104,15 @@ def solve_standard_backwards_bellman_equations(
         a = I - gamma * P.T
         b = (1 - gamma) * d0
 
-        sd = np.linalg.solve(a, b)
+        d = np.linalg.solve(a, b)
         info = {}
 
     else:
-        ev, sd = get_eigenvalue_for_eigenvector_of(P.T)
-        sd /= np.linalg.norm(sd, ord=1)
-        info = { "ev": ev, }
+        l, d = get_eigenvalue_for_eigenvector_of(P.T)
+        d /= np.linalg.norm(d, ord=1)
+        info = { "ev": l, }
 
-    return sd, info
+    return d, info
 
 def solve_modified_backwards_bellman_equations(
         d0, dD, P, gamma):
@@ -128,19 +128,19 @@ def solve_modified_backwards_bellman_equations(
         a += np.diag(mask)
         b -= mask
 
-        sdc = np.linalg.solve(a, b)
+        w = np.linalg.solve(a, b)
         info = {}
 
     else:
         assert np.prod(~mask)
         D_inv = np.diag(1 / dD)
 
-        ev, sdc = get_eigenvalue_for_eigenvector_of(
+        l, w = get_eigenvalue_for_eigenvector_of(
             D_inv @ P.T @ D)
-        sdc /= np.dot(dD, sdc)
-        info = { "ev": ev, }
+        w /= np.dot(dD, w)
+        info = { "ev": l, }
 
-    return sdc, info
+    return w, info
 
 
 def solve_backwards_bellman_equations_approximate(
@@ -151,19 +151,19 @@ def solve_backwards_bellman_equations_approximate(
     (d0_, dD_), (P_,) = project_in(mask, (d0_bar, dD_bar), (P_bar,), projected)
 
     if modified:
-        sdc_, info = solve_modified_backwards_bellman_equations_approximate(
+        w_, info = solve_modified_backwards_bellman_equations_approximate(
             d0_bar=d0_, dD_bar=dD_, P_bar=P_, n=n, gamma=gamma)
 
     else:
-        sd_, info = solve_standard_backwards_bellman_equations_approximate(
+        d_, info = solve_standard_backwards_bellman_equations_approximate(
             d0_bar=d0_, dD_bar=dD_, P_bar=P_, n=n, gamma=gamma)
-        sdc_ = safe_divide(sd_, dD_ / n, zero_div_zero=-1)
+        w_ = safe_divide(d_, dD_ / n, zero_div_zero=-1)
 
-    sdc_hat = project_out(mask, sdc_, projected, masking_value=-1)
+    w_hat = project_out(mask, w_, projected, masking_value=-1)
 
-    assert np.prod( (sdc_hat == -1) == mask )
+    assert np.prod( (w_hat == -1) == mask )
 
-    return sdc_hat, info
+    return w_hat, info
 
 
 def solve_standard_backwards_bellman_equations_approximate(
@@ -172,12 +172,12 @@ def solve_standard_backwards_bellman_equations_approximate(
     d0_hat = d0_bar / n
     P_hat = safe_divide(P_bar.T, dD_bar).T
 
-    sd_hat, info = solve_standard_backwards_bellman_equations(
+    d, info = solve_standard_backwards_bellman_equations(
         d0=d0_hat, P=P_hat, gamma=gamma, )
 
-    if "ev" in info.keys(): info = { "ev_hat": info["ev"], }
+    if "ev" in info.keys(): info = { "ev_approx": info["ev"], }
 
-    return sd_hat, info
+    return d, info
 
 def solve_modified_backwards_bellman_equations_approximate(
         d0_bar, dD_bar, P_bar, n, gamma):
@@ -193,17 +193,17 @@ def solve_modified_backwards_bellman_equations_approximate(
         a += np.diag(mask)
         b -= mask
 
-        sdc_hat = np.linalg.solve(a, b)
+        w_hat = np.linalg.solve(a, b)
         info = {}
 
     else:
-        ev_hat, sdc_hat = get_eigenvalue_for_eigenvector_of(
+        l_hat, w_hat = get_eigenvalue_for_eigenvector_of(
             safe_divide(P_bar, dD_bar).T )
-        sdc_hat /= np.dot(dD_bar, sdc_hat)
-        sdc_hat *= n
-        info = { "ev_hat": ev_hat, }
+        w_hat /= np.dot(dD_bar, w_hat)
+        w_hat *= n
+        info = { "ev_approx": l_hat, }
 
-    return sdc_hat, info
+    return w_hat, info
 
 # ---------------------------------------------------------------- #
 

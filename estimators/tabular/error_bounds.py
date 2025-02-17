@@ -19,9 +19,9 @@ def get_error_bound_exact(w_hat, gamma, analytical_solver):
 
     return x * y
 
-def get_error_bound_approximate(w_hat, gamma, aux_estimates):
+def get_error_bound_approximate(w_hat, gamma, auxiliary_estimates):
 
-    d0_bar, dD_bar, P_bar, r_bar, n = aux_estimates
+    d0_bar, dD_bar, P_bar, r_bar, n = auxiliary_estimates
 
     a = (1 - gamma) * d0_bar
     b = gamma * P_bar.T @ w_hat

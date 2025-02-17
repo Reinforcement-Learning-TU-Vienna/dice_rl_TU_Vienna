@@ -2,10 +2,8 @@
 
 import numpy as np
 
-from utils.numpy import project_in, project_out
 from dice_rl_TU_Vienna.estimators.tabular.tabular_dice import TabularDice
-
-from utils.numpy import safe_divide
+from dice_rl_TU_Vienna.utils.numpy import project_in, project_out, safe_divide
 
 # ---------------------------------------------------------------- #
 
@@ -15,7 +13,7 @@ class TabularDualDice(TabularDice):
 
     def solve_sdc(self, gamma, projected=False, **kwargs):
 
-        d0_bar, dD_bar, P_bar, r_bar, n = self.aux_estimates
+        d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 
         mask = dD_bar == 0
         (d0_, dD_), (P_,) = project_in(mask, (d0_bar, dD_bar), (P_bar,), projected)

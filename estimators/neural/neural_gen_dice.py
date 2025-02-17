@@ -2,32 +2,25 @@
 
 import tensorflow as tf
 
-from typing import Callable, Optional, Union
+from tensorflow.keras.optimizers import SGD # type: ignore
 
 from dice_rl_TU_Vienna.estimators.neural.neural_dice import NeuralDice
 
 # ---------------------------------------------------------------- #
 
 class NeuralGenDice(NeuralDice):
-    def get_loss(
-            self,
-            v_init, v, v_next,
-            w,
-            discounts_policy_ratio):
+    @property
+    def __name__(self): return "NeuralGenDice"
+
+    def get_loss(self, v_init, v, v_next, w):
 
         g = self.gamma
-        g_prime = discounts_policy_ratio
-        v_0 = v_init
-        v = v
-        v_prime = v_next
-        w = w
-
-        lam = self.lam
+        l = self.lamda
         u = self.u
 
-        x = (1 - g) * v_0 # type: ignore
-        y = w * ( g_prime * v_prime - v )
-        z = lam * ( u * (w - 1) - 1/2 * u**2 ) # type: ignore
+        x = (1 - g) * v_init
+        y = w * ( g * v_next - v )
+        z = l * ( u * (w - 1) - 1/2 * u**2 ) # type: ignore
 
         loss = x + y + z - 1/4 * v**2 * w
 
@@ -35,32 +28,28 @@ class NeuralGenDice(NeuralDice):
 
     def __init__(
             self,
-            dataset_spec,
-            v,
-            w,
-            v_optimizer,
-            w_optimizer,
-            u_optimizer,
-            gamma: Union[float, tf.Tensor],
-            reward_fn: Optional[Callable] = None,
-            obs_act: bool = True,
-            num_samples: Optional[int] = None,
-            v_regularizer: float = 0.0,
-            w_regularizer: float = 0.0,
-            lam: float = 1.0,
-        ):
+            gamma, lamda, seed, batch_size,
+            learning_rate, hidden_dimensions,
+            obs_min, obs_max, n_act, obs_shape,
+            dataset, preprocess_obs=None, preprocess_act=None, preprocess_rew=None,
+            dir=None, get_recordings=None, other_hyperparameters=None, save_interval=100):
 
         super().__init__(
-            dataset_spec,
-            v, w,
-            v_optimizer, w_optimizer,
-            gamma, reward_fn,
-            obs_act, num_samples,
-            v_regularizer, w_regularizer,
+            gamma, seed, batch_size,
+            learning_rate, hidden_dimensions,
+            obs_min, obs_max, n_act, obs_shape,
+            dataset, preprocess_obs, preprocess_act, preprocess_rew,
+            dir, get_recordings, other_hyperparameters, save_interval,
         )
 
+        self.lamda = lamda
+
+        self.hyperparameters["lamda"] = lamda
+
+    def set_up_networks(self):
+        super().set_up_networks()
+
         self.u = tf.Variable(1.0)
-        self.u_optimizer = u_optimizer
-        self.lam = lam
+        self.u_optimizer = SGD(self.learning_rate)
 
 # ---------------------------------------------------------------- #

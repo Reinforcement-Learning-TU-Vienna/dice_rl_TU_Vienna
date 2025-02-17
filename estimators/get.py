@@ -1,13 +1,10 @@
 # ---------------------------------------------------------------- #
 
 import numpy as np
-import tensorflow as tf
-
-import os
 
 from tqdm import tqdm
 
-from utils.numpy import add_middle_means_log
+from dice_rl_TU_Vienna.utils.numpy import add_middle_means_log
 
 # ---------------------------------------------------------------- #
 
@@ -28,21 +25,21 @@ def get_pv_OnPE(estimator, gamma, *args):
     return pv
 
 def get_pv_OffPE(estimator, gamma, *args):
-    projected, weighted, modified, lam = args
+    projected, weighted, modified, lamda = args
 
     pv, *_ = estimator.solve(
         gamma, projected,
         weighted=weighted,
-        modified=modified, lam=lam,
+        modified=modified, lamda=lamda,
     )
     return pv
 
 def get_sdc(estimator, gamma, *args):
-    projected, modified, lam = args
+    projected, modified, lamda = args
 
     sdc, _ = estimator.solve_sdc(
         gamma, projected,
-        modified=modified, lam=lam,
+        modified=modified, lamda=lamda,
     )
     return sdc
 
@@ -56,9 +53,9 @@ def get_vaf(estimator, gamma, *args):
 
 
 def apply_get(
-        get, hparam_str, file_name,
+        get, file_name,
         estimator_s, gamma_s,
-        save_dir=None, verbosity=0,
+        verbosity=0,
         *args):
 
     if isinstance(estimator_s, list):
@@ -66,49 +63,26 @@ def apply_get(
         if verbosity == 1: pbar = tqdm(pbar)
         return np.array([
             apply_get(
-                get, hparam_str, file_name,
+                get, file_name,
                 estimator, gamma_s,
-                save_dir, verbosity,
+                verbosity,
                 *args
             )
                 for estimator in pbar
         ])
 
     if isinstance(gamma_s, list) or isinstance(gamma_s, np.ndarray):
-        try:
-            if save_dir is not None:
-                save_dir = os.path.join(save_dir, estimator_s.__name__)
-
-                hs = hparam_str.get(estimator_s.__name__, None)
-                if hs is not None: save_dir = os.path.join(save_dir, hs)
-
-                if not tf.io.gfile.isdir(save_dir):
-                    tf.io.gfile.makedirs(save_dir)
-
-                path = os.path.join(save_dir, f"{file_name}.npy")
-
-                if verbosity == 2: print(f"Try loading {path}")
-                array = np.load(path)
-
-            else: raise FileNotFoundError
-
-        except:
-            if verbosity == 2: print(f"No {file_name} found in", path)
-            pbar = gamma_s
-            if verbosity == 2: pbar = tqdm(pbar)
-            array = np.array([
-                apply_get(
-                    get, hparam_str, file_name,
-                    estimator_s, gamma,
-                    save_dir, verbosity,
-                    *args
-                )
-                    for gamma in pbar
-            ])
-
-            if save_dir is not None:
-                np.save(path, array)
-                if verbosity == 2: print(f"saved {path}")
+        pbar = gamma_s
+        if verbosity == 2: pbar = tqdm(pbar)
+        array = np.array([
+            apply_get(
+                get, file_name,
+                estimator_s, gamma,
+                verbosity,
+                *args
+            )
+                for gamma in pbar
+        ])
 
         return array
 
@@ -117,63 +91,44 @@ def apply_get(
 
 def get_pv_s_OnPE(
         estimator_s, gamma_s,
-        save_dir=None, verbosity=0):
-
-    hparam_str = {}
+        verbosity=0, ):
 
     return apply_get(
-        get_pv_OnPE, hparam_str, "pv",
+        get_pv_OnPE, "pv",
         estimator_s, gamma_s,
-        save_dir, verbosity)
+        verbosity, )
 
 def get_pv_s_OffPE(
         estimator_s, gamma_s,
-        projected, weighted, modified, lam,
-        save_dir=None, verbosity=0):
-
-    hparam_str = {
-        "TabularVafe": f"{projected=}",
-        "TabularDice": f"{projected=}_{weighted=}_{modified=}",
-        "TabularDualDice": f"{projected=}_{weighted=}",
-        "TabularGradientDice": f"{projected=}_{weighted=}_{lam=}",
-    }
+        projected, weighted, modified, lamda,
+        verbosity=0, ):
 
     return apply_get(
-        get_pv_OffPE, hparam_str, "pv",
+        get_pv_OffPE, "pv",
         estimator_s, gamma_s,
-        save_dir, verbosity,
-        projected, weighted, modified, lam)
+        verbosity,
+        projected, weighted, modified, lamda, )
 
 def get_sdc_s(
         estimator_s, gamma_s,
-        projected, modified, lam,
-        save_dir=None, verbosity=0):
-
-    hparam_str = {
-        "TabularDice": f"{projected=}_{modified=}",
-        "TabularDualDice": f"{projected=}",
-        "TabularGradientDice": f"{projected=}_{lam=}",
-    }
+        projected, modified, lamda,
+        verbosity=0, ):
 
     return apply_get(
-        get_sdc, hparam_str, "sdc",
+        get_sdc, "sdc",
         estimator_s, gamma_s,
-        save_dir, verbosity,
-        projected, modified, lam)
+        verbosity,
+        projected, modified, lamda, )
 
 def get_vaf_s(
         estimator_s, gamma_s,
         projected,
-        save_dir=None, verbosity=0):
-
-    hparam_str = {
-        "TabularVafe": f"{projected=}",
-    }
+        verbosity=0, ):
 
     return apply_get(
-        get_vaf, hparam_str, "vaf",
+        get_vaf, "vaf",
         estimator_s, gamma_s,
-        save_dir, verbosity,
-        projected)
+        verbosity,
+        projected, )
 
 # ---------------------------------------------------------------- #

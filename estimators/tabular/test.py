@@ -7,7 +7,7 @@ import tensorflow as tf
 
 import os
 
-from utils.numpy import safe_divide
+from dice_rl_TU_Vienna.utils.numpy import safe_divide
 
 # ---------------------------------------------------------------- #
 
@@ -15,7 +15,7 @@ def test_estimator(estimator_DICE, gamma, projected, weighted, **kwargs):
 
     # -------------------------------- #
 
-    d0_bar, dD_bar, P_bar, r_bar, n = estimator_DICE.aux_estimates
+    d0_bar, dD_bar, P_bar, r_bar, n = estimator_DICE.auxiliary_estimates
 
     d0_hat = d0_bar / n
     dD_hat = dD_bar / n
@@ -50,21 +50,21 @@ def test_estimator(estimator_DICE, gamma, projected, weighted, **kwargs):
     # -------------------------------- #
 
 
-def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
+def test_auxiliary_estimates(auxiliary_estimates, title_prefix, dir=None):
 
-    if save_dir is not None:
-        if not tf.io.gfile.isdir(save_dir):
-            tf.io.gfile.makedirs(save_dir)
+    if dir is not None:
+        if not tf.io.gfile.isdir(dir):
+            tf.io.gfile.makedirs(dir)
 
     def get_path(file_name):
-        assert save_dir is not None
+        assert dir is not None
         fn = title_prefix + "; " + f"{file_name}.png"
-        path = os.path.join(save_dir, fn)
+        path = os.path.join(dir, fn)
         return path
 
     # -------------------------------- #
 
-    d0_bar, dD_bar, P_bar, r_bar, n = aux_estimates
+    d0_bar, dD_bar, P_bar, r_bar, n = auxiliary_estimates
 
     d0_hat = d0_bar / n
     dD_hat = dD_bar / n
@@ -77,7 +77,7 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
     P_bar_mask = P_bar[~mask, :][:, ~mask]
     r_bar_mask = dD_bar[~mask]
 
-    aux_estimates_mask = (d0_bar_mask, dD_bar_mask, P_bar_mask, r_bar_mask, n)
+    auxiliary_estimates_mask = (d0_bar_mask, dD_bar_mask, P_bar_mask, r_bar_mask, n)
 
     # -------------------------------- #
 
@@ -121,7 +121,7 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
 
     plt.suptitle(title_prefix)
 
-    if save_dir is not None:
+    if dir is not None:
         file_name = "d0_hat, dD_hat, r_hat"
         path = get_path(file_name)
         plt.savefig(path, bbox_inches="tight")
@@ -136,7 +136,7 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
     plt.xlabel(r"$(s, a)$-index")
     plt.ylabel(r"$(s, a)$-index")
     plt.suptitle(title_prefix + "; " + r"$\bar{P}^\pi$")
-    if save_dir is not None:
+    if dir is not None:
         file_name = "P_bar"
         path = get_path(file_name)
         plt.savefig(path, bbox_inches="tight")
@@ -148,7 +148,7 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
     plt.xlabel(r"masked $(s, a)$-index")
     plt.ylabel(r"masked $(s, a)$-index")
     plt.suptitle(title_prefix + "; " + r"$\bar{P}^{\pi, \text{mask}}$")
-    if save_dir is not None:
+    if dir is not None:
         file_name = "P_bar_mask"
         path = get_path(file_name)
         plt.savefig(path, bbox_inches="tight")
@@ -158,9 +158,9 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
 
     # -------------------------------- #
 
-    def test_sum(aux_estimates, names, mask=False, epsilon=1e-4):
+    def test_sum(auxiliary_estimates, names, mask=False, epsilon=1e-4):
 
-        d0_bar, dD_bar, P_bar, r_bar, n = aux_estimates
+        d0_bar, dD_bar, P_bar, r_bar, n = auxiliary_estimates
 
         d0_hat = d0_bar / n
         dD_hat = dD_bar / n
@@ -200,7 +200,7 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
         y = r"\sum_{(s, a) \in S \times A} " + distribution + "(s, a) = " + str(s_dD)
         plt.figtext(0.5, -0.025, f"${x}" + ", \quad " + f"{y}$", ha="center")
 
-        if save_dir is not None:
+        if dir is not None:
             file_name = "sums"
             if mask: file_name += "_" + "mask"
             path = get_path(file_name)
@@ -210,13 +210,13 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
 
 
     test_sum(
-        aux_estimates=aux_estimates,
+        auxiliary_estimates=auxiliary_estimates,
         names=["d0_hat", "dD_hat", "P_hat"],
         mask=False,
     )
 
     test_sum(
-        aux_estimates=aux_estimates_mask,
+        auxiliary_estimates=auxiliary_estimates_mask,
         names=["d0_hat_mask", "dD_hat_mask", "P_hat_mask"],
         mask=True,
     )
@@ -226,8 +226,8 @@ def test_aux_estimates(aux_estimates, title_prefix, save_dir=None):
     # -------------------------------- #
 
 
-def get_non_trivial_transitions(aux_estimates, n_clusters):
-    d0_bar, dD_bar, P_bar, r_bar, n = aux_estimates
+def get_non_trivial_transitions(auxiliary_estimates, n_clusters):
+    d0_bar, dD_bar, P_bar, r_bar, n = auxiliary_estimates
 
     A = np.copy(P_bar[:-10, :-10])
 
@@ -245,9 +245,9 @@ def get_non_trivial_transitions(aux_estimates, n_clusters):
 
 # deprecated
 
-def get_indices_bad_matrix(aux_estimates):
+def get_indices_bad_matrix(auxiliary_estimates):
 
-    d0_bar, dD_bar, P_bar, r_bar, n = aux_estimates
+    d0_bar, dD_bar, P_bar, r_bar, n = auxiliary_estimates
 
     indices_bad_list = []
     indices_bad_list_T = []
@@ -279,8 +279,8 @@ def get_indices_bad_matrix(aux_estimates):
 
     return df, df_T
 
-def get_indices_bad_mask(aux_estimates):
-    d0_bar, dD_bar, P_bar, r_bar, n = aux_estimates
+def get_indices_bad_mask(auxiliary_estimates):
+    d0_bar, dD_bar, P_bar, r_bar, n = auxiliary_estimates
 
     elements = []
 
@@ -292,9 +292,9 @@ def get_indices_bad_mask(aux_estimates):
 
     return [(o, a) for o, a, number in elements if number == 0]
 
-def display_indices_bad(aux_estimates):
-    indices_bad_matrix, indices_bad_matrix_T = get_indices_bad_matrix(aux_estimates)
-    indices_bad_mask = get_indices_bad_mask(aux_estimates)
+def display_indices_bad(auxiliary_estimates):
+    indices_bad_matrix, indices_bad_matrix_T = get_indices_bad_matrix(auxiliary_estimates)
+    indices_bad_mask = get_indices_bad_mask(auxiliary_estimates)
 
     display(indices_bad_matrix_T) # type: ignore
     display(indices_bad_mask)     # type: ignore

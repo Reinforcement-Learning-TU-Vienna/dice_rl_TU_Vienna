@@ -2,29 +2,21 @@
 
 import tensorflow as tf
 
-from typing import Callable, Optional, Union
-
 from dice_rl_TU_Vienna.estimators.neural.neural_dice import NeuralDice
 
 # ---------------------------------------------------------------- #
 
 class NeuralDualDice(NeuralDice):
-    def get_loss(
-            self,
-            v_init, v, v_next,
-            w,
-            discounts_policy_ratio):
+    @property
+    def __name__(self): return "NeuralDualDice"
+
+    def get_loss(self, v_init, v, v_next, w):
 
         g = self.gamma
-        g_prime = discounts_policy_ratio
-        v_0 = v_init
-        v = v
-        v_prime = v_next
-        w = w
 
-        x = (1 - g) * v_0 # type: ignore
-        y = w * ( g_prime * v_prime - v )
-        z = self.fstar_fn(w)
+        x = (1 - g) * v_init
+        y = w * ( g * v_next - v )
+        z = self.q_fn(w)
 
         loss = x + y + z
 
@@ -32,34 +24,27 @@ class NeuralDualDice(NeuralDice):
 
     def __init__(
             self,
-            dataset_spec,
-            v,
-            w,
-            v_optimizer,
-            w_optimizer,
-            gamma: Union[float, tf.Tensor],
-            reward_fn: Optional[Callable] = None,
-            obs_act: bool = True,
-            num_samples: Optional[int] = None,
-            v_regularizer: float = 0.0,
-            w_regularizer: float = 0.0,
-            f_exponent: float = 1.5,
-        ):
-
+            gamma, p, seed, batch_size,
+            learning_rate, hidden_dimensions,
+            obs_min, obs_max, n_act, obs_shape,
+            dataset, preprocess_obs=None, preprocess_act=None, preprocess_rew=None,
+            dir=None, get_recordings=None, other_hyperparameters=None, save_interval=100):
+    
         super().__init__(
-            dataset_spec,
-            v, w,
-            v_optimizer, w_optimizer,
-            gamma, reward_fn,
-            obs_act, num_samples,
-            v_regularizer, w_regularizer,
+            gamma, seed, batch_size,
+            learning_rate, hidden_dimensions,
+            obs_min, obs_max, n_act, obs_shape,
+            dataset, preprocess_obs, preprocess_act, preprocess_rew,
+            dir, get_recordings, other_hyperparameters, save_interval,
         )
 
-        if f_exponent <= 1:
-            raise ValueError('Exponent for f must be greater than 1.')
-        fstar_exponent = f_exponent / (f_exponent - 1)
+        assert p > 1
 
-        self.f_fn     = lambda x: tf.abs(x) ** f_exponent     / f_exponent
-        self.fstar_fn = lambda x: tf.abs(x) ** fstar_exponent / fstar_exponent
+        q = p / (p - 1)
+
+        self.p_fn = lambda x: tf.abs(x) ** p / p
+        self.q_fn = lambda x: tf.abs(x) ** q / q
+
+        self.hyperparameters["p"] = p
 
 # ---------------------------------------------------------------- #

@@ -53,8 +53,15 @@ def add_middle_means_log(x, multiplicity=1):
 
 
 # https://stackoverflow.com/a/54628145/16192280
-def moving_average(x, w):
+def moving_average_N(x, w):
+    if len(x) < w: return []
     return np.convolve(x, np.ones(w), 'valid') / w
+
+def moving_average_Z(x, w):
+    if len(x) < 2 * w: return []
+    return np.array([
+        np.mean(x[i-w:i+w]) for i in range(w, len(x)-w)
+    ])
 
 
 def pad(x, c=0, verbosity=0):

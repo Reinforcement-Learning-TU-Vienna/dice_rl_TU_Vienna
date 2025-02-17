@@ -12,9 +12,14 @@ def flatten_grads(grads):
 
 # ---------------------------------------------------------------- #
 
-def aux_recorder_cos_angle(
+def get_recordings_cos_angle(
         estimator,
-        env_steps, values, loss, gradients):
+        obs_init, obs, act, obs_next, probs_init, probs_next,
+        values, loss, gradients,
+        pv_s, pv_w, ):
+
+        # estimator,
+        # env_steps, values, loss, gradients):
 
     x = flatten_grads(gradients["v"])
     y = flatten_grads(gradients["v_next"])

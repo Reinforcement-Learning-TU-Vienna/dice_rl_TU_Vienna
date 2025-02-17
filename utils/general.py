@@ -14,6 +14,31 @@ def unpack(d, k):
     if isinstance(d, dict): return d[k]
     return d
 
+def merge_dicts(*args):
+    d = {}
+
+    for arg in args:
+        for k, v in arg.items():
+            d[k] = v
+
+    return d
+
+def dict_to_str(d, blacklist=None, whitelist=None):
+    if blacklist is None: blacklist = []
+    if whitelist is None: whitelist = d.keys()
+
+    d = {
+        k: v
+            for k, v in d.items()
+                if k not in blacklist and k in whitelist
+    }
+
+    s = ""
+    for i, (k, v) in enumerate(d.items()):
+        s += f"{k}={v}"
+        if i != len(d)-1: s += ", "
+    return s
+
 # ---------------------------------------------------------------- #
 
 def safe_zip(*args):

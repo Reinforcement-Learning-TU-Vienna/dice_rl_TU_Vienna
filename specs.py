@@ -29,6 +29,20 @@ def get_observation_action_spec(
 
     return observation_spec, action_spec
 
+def get_observation_action_spec_tabular(n_obs, n_act):
+    return get_observation_action_spec(
+        obs_shape=(), act_shape=(),
+        obs_dtype=np.int64, act_dtype=np.int64,
+        obs_min=0, obs_max=n_obs-1, act_min=0, act_max=n_act-1,
+    )
+
+def get_observation_action_spec_continuous(obs_min, obs_max, n_act, obs_shape):
+    return get_observation_action_spec(
+        obs_shape=obs_shape, act_shape=(),
+        obs_dtype=np.float32, act_dtype=np.int64,
+        obs_min=obs_min, obs_max=obs_max, act_min=0, act_max=n_act-1,
+    )
+
 def get_step_num_spec(step_num_max):
     return tensor_spec.from_spec(
         BoundedArraySpec(
@@ -37,26 +51,5 @@ def get_step_num_spec(step_num_max):
             minimum=0,
             maximum=step_num_max,
             name="step_num"))
-
-# ---------------------------------------------------------------- #
-
-def get_observation_action_spec_tabular(bounds):
-    obs_min, obs_max, act_min, act_max = bounds
-
-    return get_observation_action_spec(
-        obs_shape=(), act_shape=(),
-        obs_dtype=np.int64, act_dtype=np.int64,
-        obs_min=obs_min, obs_max=obs_max, act_min=act_min, act_max=act_max,
-    )
-
-def get_observation_action_spec_continuous(bounds, shapes):
-    obs_min, obs_max, act_min, act_max = bounds
-    obs_shape, act_shape = shapes
-
-    return get_observation_action_spec(
-        obs_shape=obs_shape, act_shape=act_shape,
-        obs_dtype=np.float32, act_dtype=np.int64,
-        obs_min=obs_min, obs_max=obs_max, act_min=act_min, act_max=act_max,
-    )
 
 # ---------------------------------------------------------------- #

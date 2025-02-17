@@ -1,102 +1,91 @@
 # ---------------------------------------------------------------- #
 
-import numpy as np
+import os
+
 import tensorflow as tf
 
-import torch
+from datetime import datetime
 
 from stable_baselines3 import PPO
 from sb3_contrib import MaskablePPO
 
-from dice_rl_TU_Vienna.policy import MyTFPolicy
-from dice_rl_TU_Vienna.plugins.stable_baselines3.specs import get_observation_action_spec_from_env
+from dice_rl_TU_Vienna.utils.seeds import set_all_seeds
+from dice_rl_TU_Vienna.utils.json import (
+    json_get_id, json_remove_by_dict, json_append, )
 
 # ---------------------------------------------------------------- #
 
-class TFPolicyPPO(MyTFPolicy):
-    def __init__(self, model, observation_spec, action_spec, reward_spec=None):
-        self.model = model
-        super().__init__(observation_spec, action_spec, reward_spec)
+def create_model_from_env(model_type, env, hyperparameters):
+    set_all_seeds(hyperparameters["seed"])
 
-    def _probs(self, time_step):
-        logits = self._logits(time_step)
-        return tf.nn.softmax(logits)
-
-    def _logits_distribution(self, observation):
-        return self.model.policy.get_distribution(observation)
-
-    def _logits(self, time_step):
-        x = time_step.observation
-
-        if tf.rank(x) == 0: x = tf.reshape(x, shape=[1, 1])
-
-        x = np.array(x)
-        x = torch.tensor(x)
-        observation = x
-
-        distribution = self._logits_distribution(observation)
- 
-        logits = np.array([
-            distribution.log_prob( torch.tensor(action) ).detach().numpy()
-                for action in range(self.action_spec.maximum + 1) # type: ignore
-        ]).T
-        logits = np.squeeze(logits)
-
-        return logits
-
-
-class TFPolicyMaskablePPO(TFPolicyPPO):
-    def __init__(self, model, action_masks, observation_spec, action_spec, reward_spec=None):
-        self.action_masks = action_masks
-        super().__init__(model, observation_spec, action_spec, reward_spec)
-
-    def _logits_distribution(self, observation):
-        action_mask = self.action_masks[observation]
-        return self.model.policy.get_distribution(observation, action_mask)
-
-# ---------------------------------------------------------------- #
-
-def get_TFPolicyPPO(env, model):
-    return TFPolicyPPO(
-        model, *get_observation_action_spec_from_env(env), )
-
-def get_TFPolicyMaskablePPO(env, model, action_masks):
-    return TFPolicyMaskablePPO(
-        model, action_masks, *get_observation_action_spec_from_env(env), )
-
-# ---------------------------------------------------------------- #
-
-def load_or_create_model(
-        model_type,
-        model_dir, env=None, total_timesteps=None):
-
-    try:
-        print("Try loading model", model_dir)
-        model = model_type.load(model_dir)
-
-    except KeyboardInterrupt:
-        print("KeyboardInterrupt")
-        assert False
-
-    except:
-        assert env is not None
-        assert total_timesteps is not None
-
-        print(); print(f"No model found in {model_dir}")
-
-        model = model_type("MlpPolicy", env, verbose=1)
-
-        model.learn(total_timesteps=total_timesteps, tb_log_name="ppo_run")
-        model.save(model_dir)
+    model = model_type("MlpPolicy", env, verbose=1)
+    model.learn(
+        total_timesteps=hyperparameters["total_timesteps"],
+        tb_log_name="ppo_run",
+    )
 
     return model
 
 
-def load_or_create_model_PPO(model_dir, env=None, total_timesteps=None):
-    return load_or_create_model(PPO, model_dir, env, total_timesteps)
+def save_model(dir_base, model, hyperparameters, verbosity=0):
+    file_path_json = os.path.join(dir_base, "policy.json")
+
+    id_policy = datetime.now().isoformat()
+    dir_policy = os.path.join(dir_base, id_policy)
+    file_path_zip = os.path.join(dir_policy, "policy.zip")
+
+    hyperparameters_labeled = {
+        "id": id_policy,
+        "data": hyperparameters,
+    }
+
+    json_append(file_path=file_path_json, dictionary=hyperparameters_labeled)
+
+    if not tf.io.gfile.isdir(dir_policy):
+        tf.io.gfile.makedirs(dir_policy)
+
+    model.save(file_path_zip)
+    if verbosity > 0: print(f"saved {file_path_zip}")
+
+    return id_policy
 
 
-def load_or_create_model_MaskablePPO(model_dir, env=None, total_timesteps=None):
-    return load_or_create_model(MaskablePPO, model_dir, env, total_timesteps)
+def get_model(model_type, dir_base, env, hyperparameters, verbosity=0):
+    file_path_json = os.path.join(dir_base, "policy.json")
+    loaded = False
+
+    if verbosity > 0: print(f"trying to find id_policy in {file_path_json}")
+    id_policy = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
+
+    if id_policy is not None:
+        dir_policy = os.path.join(dir_base, id_policy)
+        file_path_zip = os.path.join(dir_policy, "policy.zip")
+
+        if verbosity > 0: print(f"trying to load policy from {file_path_zip}")
+        if os.path.exists(file_path_zip):
+            model = model_type.load(file_path_zip)
+            loaded = True
+
+    if not loaded:
+        if verbosity > 0: print("failed to load")
+        if verbosity > 0: print("creating policy from environment")
+
+        model = create_model_from_env(model_type, env, hyperparameters)
+
+        if verbosity > 0: print(f"removing policy hyperparameters from {file_path_json}")
+        json_remove_by_dict(file_path=file_path_json, dictionary=hyperparameters)
+
+        if verbosity > 0: print("saving dataset")
+        id_policy = save_model(dir_base, model, hyperparameters, verbosity)
+
+    return model, id_policy
+
+
+def get_model_PPO(dir_base, env, hyperparameters, verbosity=0):
+    return get_model(PPO, dir_base, env, hyperparameters, verbosity)
+
+
+def get_model_MaskablePPO(dir_base, env, hyperparameters, verbosity=0):
+    return get_model(MaskablePPO, dir_base, env, hyperparameters, verbosity)
 
 # ---------------------------------------------------------------- #

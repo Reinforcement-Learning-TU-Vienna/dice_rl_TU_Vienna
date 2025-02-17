@@ -3,319 +3,320 @@
 import os
 import random
 
+import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
 from collections import defaultdict
 
 from dice_rl_TU_Vienna.latex import latex_labels
-
-from utils.general import safe_zip, shape
-from utils.numpy import moving_average
-
-from utils.general import safe_zip, list_ify
+from dice_rl_TU_Vienna.utils.general import safe_zip, shape, list_ify
+from dice_rl_TU_Vienna.utils.numpy import moving_average
+from dice_rl_TU_Vienna.utils.json import json_get_id
+from dice_rl_TU_Vienna.utils.os import os_path_join
 
 # ---------------------------------------------------------------- #
 
-def get_logs(log_dir, file_name=None):
+def get_log(log_dir, file_name=None, verbosity=0):
 
     if file_name is None:
         file_names = [f for f in os.listdir(log_dir) if f != ".DS_Store"]
         file_name = file_names[-1]
 
     event_file_path = os.path.join(log_dir, file_name) # type: ignore
-    print(f"Getting log: {event_file_path}")
+    if verbosity > 0: print(f"Getting log {event_file_path}")
 
     summary_iterator = tf.compat.v1.train.summary_iterator(event_file_path)
 
-    logs = {
+    log = {
         "event_file_path": event_file_path,
         "data": defaultdict(lambda: {"steps": [], "values": []})
     }
 
     for event in summary_iterator:
-        if event.HasField('summary'):
+        if event.HasField("summary"):
             for value in event.summary.value:
                 tensor = tf.io.parse_tensor(
                     value.tensor.SerializeToString(), out_type=tf.float32)
-                logs["data"][value.tag]["steps"].append(event.step)
-                logs["data"][value.tag]["values"].append(float(tensor))
 
-    return logs
+                log["data"][value.tag]["steps"].append(event.step)
+                log["data"][value.tag]["values"].append(float(tensor))
+
+    return log
 
 # ---------------------------------------------------------------- #
 
-def plot_log(logs, infos, suptitle=None, save_dir=None, file_name=None):
-    if type(logs) is dict:
-        logs_array = [logs]
-        infos_array = [infos]
-    elif type(logs) is list:
-        logs_array = logs
-        infos_array = infos
-    else:
-        raise NotImplementedError
+def plot(infos, suptitle=None, dir_save=None, file_name=None):
 
-    n_cols, n_rows = shape(infos_array, depth=2) # type: ignore
+    n_cols, n_rows = shape(infos, depth=2) # type: ignore
 
-    _, ax_mat = plt.subplots(
+    _, axs = plt.subplots(
         nrows=n_rows,
         ncols=n_cols,
         squeeze=False,
         tight_layout=True,
-        figsize=(6 * len(logs_array), 8))
+        figsize=(5*n_cols, 3*n_rows),
+    )
+
+    for i, (info_column, ax_column) in enumerate( safe_zip(infos, axs.T) ):
+        for j, (info_row, ax_row) in enumerate( safe_zip(info_column, ax_column) ):
+
+            for info_hline in info_row.get("hlines", []):
+                ax_row.hlines(
+                    y=info_hline["y"],
+                    xmin=info_hline["xmin"],
+                    xmax=info_hline["xmax"],
+                    label=info_hline["label"],
+                    colors=info_hline["color"],
+                    linestyles=info_hline["linestyle"],
+                )
+
+            for info_plot in info_row.get("plots", []):
+                ax_row.plot(
+                    info_plot["x"],
+                    info_plot["y"],
+                    label=info_plot["label"],
+                    color=info_plot["color"],
+                    alpha=info_plot["alpha"],
+                )
+
+            if ( plot_type := info_row.get("plot_type", None) ) is not None:
+                if plot_type in ["semilogx", "loglog"]: ax_row.set_xscale("log")
+                if plot_type in ["semilogy", "loglog"]: ax_row.set_yscale("log")
+
+            if ( title := info_row.get("title", None) ) is not None:
+                ax_row.set_title(title)
+
+            if ( xlabel := info_row.get("xlabel", None) ) is not None:
+                ax_row.set_xlabel(xlabel)
+
+            if ( ylabel := info_row.get("ylabel", None) ) is not None:
+                ax_row.set_ylabel(ylabel)
+
+            if ( xlim := info_row.get("xlim", None) ) is not None:
+                ax_row.set_xlim(xlim)
+
+            if ( ylim := info_row.get("ylim", None) ) is not None:
+                ax_row.set_ylim(ylim)
+
+            ax_row.grid(linestyle=":")
+            if i == 0: ax_row.legend()
 
     if suptitle is not None: plt.suptitle(suptitle)
 
-    display_description = True
-    for ax_vec, infos, logs in safe_zip(ax_mat.T, infos_array, logs_array):
-        colors = ["blue", "orange", "green", "red"]
-
-        for ax, info in safe_zip(ax_vec, infos):
-            for i, tag in enumerate(info["tags"]):
-
-                x = logs["data"][tag]["steps"]
-                y = logs["data"][tag]["values"]
-
-                xmin = min(x)
-                xmax = max(x)
-
-                k = tag
-                if tag == "pv_s": k = "pv_approx_s"
-                if tag == "pv_w": k = "pv_approx_w"
-                label = latex_labels[k]("")
-                color = colors[i]
-                alpha = 0.1 if "n_moving_averages" in info.keys() else 1
-
-                ax.plot(x, y, label=label, color=color, alpha=alpha)
-
-                if "plot_type" in info.keys():
-                    if info["plot_type"] in ["semilogx", "loglog"]: ax.set_xscale("log")
-                    if info["plot_type"] in ["semilogy", "loglog"]: ax.set_yscale("log")
-
-
-                if "n_moving_averages" in info.keys():
-                    n_moving_average = info["n_moving_averages"]
-                    if n_moving_average is not None:
-                        x_ma = x[n_moving_average-1:]
-                        y_ma = moving_average(y, n_moving_average)
-                        if len(x_ma) == len(y_ma): ax.plot(x_ma, y_ma, color=colors[i])
-
-            if "baselines" in info.keys():
-                for baseline in info["baselines"]:
-                    ax.hlines(
-                        y=baseline["value"], xmin=xmin, xmax=xmax,
-                        label=baseline["label"],
-                        colors="black", linestyles=baseline["linestyle"])
-
-            if "title" in info.keys():
-                ax.set_title(info["title"])
-
-            if "ylabel" in info.keys():
-                if display_description:
-                    ax.set_ylabel(info["ylabel"])
-
-            if "xlim" in info.keys():
-                ax.set_xlim(info["xlim"])
-
-            if "ylim" in info.keys():
-                ax.set_ylim(info["ylim"])
-
-            if display_description:
-                legend = ax.legend()
-                for lh in legend.legend_handles:
-                    lh.set_alpha(1)
-
-            ax.grid(linestyle=":")
-
-        display_description = False
-
-        plt.xlabel("step")
-
-    if save_dir is not None:
-
-        if not tf.io.gfile.isdir(save_dir):
-            tf.io.gfile.makedirs(save_dir)
-
+    if dir_save is not None:
         assert file_name is not None
-        save_path = os.path.join(save_dir, f"{file_name}.png")
 
+        if not tf.io.gfile.isdir(dir_save):
+            tf.io.gfile.makedirs(dir_save)
+
+        save_path = os.path.join(dir_save, f"{file_name}.png")
         plt.savefig(save_path, bbox_inches="tight")
 
     plt.show()
 
 # ---------------------------------------------------------------- #
 
-hparam_str_dict = {
-    "gam": "gamma",
-    "nstep": "number-of-steps",
-    "batchs": "batch-size",
-    "seed": "seed",
-    "hdp": "hidden-dimensions-primal",
-    "hdd": "hidden-dimensions-dual",
-    "lrp": "learning-rate-primal",
-    "lrd": "learning-rate-dual",
-    "regp": "mlp-regularizer-primal",
-    "regd": "mlp-regularizer-dual",
-    "fexp": "f-exponent",
-    "nlr": "learning-rate-norm",
-    "nreg": "norm-regularizer",
-}
+def get_logs_from_hyperparameters(
+        dir_base,
+        hyperparameters_dataset,
+        hyperparameters_policy,
+        hyperparameters_evaluation,
+        verbosity=0):
 
-def hparam_str_evaluation_to_hparams(hparam_str_evaluation):
-    slices = hparam_str_evaluation.split("_")
-    hparams = {}
-    for slice in slices:
+    dir_log_0 = dir_base
 
-        k = None
-        v = None
-        for name in hparam_str_dict.keys():
-            if name in slice:
-                k = name
-                v = slice.removeprefix(k)
-                break
-        assert k is not None and v is not None, f"{slice} from {slices} not found"
+    id_dataset = None
+    if hyperparameters_dataset is not None:
+        file_dir = os.path.join(dir_log_0, "dataset.json")
+        dictionary = hyperparameters_dataset
+        id_dataset = json_get_id(file_dir, dictionary)
 
-        hparams[k] = v
+    dir_log_1 = os_path_join(dir_log_0, id_dataset)
 
-    return hparams
+    id_policy = None
+    if hyperparameters_policy is not None:
+        file_dir = os.path.join(dir_log_0, "policy.json")
+        dictionary = hyperparameters_policy
+        id_policy = json_get_id(file_dir, dictionary)
 
-def get_plot_logs(
-        get_suptitle, get_pv_baselines,
-        #
-        outputs_dir,
-        hparam_str_policy, hparam_str_dataset,
-        estimator_name, hparam_str_evaluation,
-        #
-        error_tags=None, plot_types=None,
-        #
-        title=None,
-        xlim=None,
-        ylim_1=None, ylim_2=None, ylim_3=None,
-        n_ma_1=None, n_ma_2=None, n_ma_3=None,
-        #
-        save_dir=None, file_name=None,
-        hparams_title=None,
-    ):
+    dir_log_2 = os_path_join(dir_log_1, id_policy)
 
-    # -------------------------------- #
-
-    if error_tags is None:
-        # all = ["pv_error", "sdc_L1_error", "sdc_L2_error", "bellman_L1_error", "bellman_L2_error", "norm_error"]
-        error_tags = []
-    if plot_types is None:
-        plot_types = ["plot", "semilogy", "plot"]
-
-    l = list_ify(
-        hparam_str_evaluation, file_name,
-        title,
-        xlim,
-        ylim_1, ylim_2, ylim_3,
-        n_ma_1, n_ma_2, n_ma_3,
-    )
-
-    d = {
-        "hparam_str_evaluation": l[0], "file_name": l[1],
-        "title": l[2],
-        "xlim": l[3],
-        "ylim_1": l[4], "ylim_2": l[5], "ylim_3": l[6],
-        "n_ma_1": l[7], "n_ma_2": l[8], "n_ma_3": l[9],
-    }
-
-    # -------------------------------- #
+    if not isinstance(hyperparameters_evaluation, list):
+        hyperparameters_evaluation = [ hyperparameters_evaluation ]
 
     logs = []
+    file_dir = os.path.join(dir_log_2, "evaluation.json")
+    for dictionary in hyperparameters_evaluation:
+        id_evaluation = json_get_id(file_dir, dictionary)
 
-    Z = d["hparam_str_evaluation"], d["file_name"]
-    for z in safe_zip(*Z):
-        hparam_str_evaluation, file_name = z
-
-        log_dir = os.path.join(
-            outputs_dir,
-            hparam_str_policy, hparam_str_dataset,
-            estimator_name, hparam_str_evaluation, )
-
-        log = get_logs(
-            log_dir=log_dir,
-            file_name=file_name,
+        log = get_log(
+            log_dir=os_path_join(dir_log_2, id_evaluation),
+            verbosity=verbosity,
         )
         logs.append(log)
 
-    # -------------------------------- #
+    return logs
 
-    gammas = []
-    lambdas = []
+colors = { False: "blue", True: "orange", }
 
-    for hparam_str_evaluation in d["hparam_str_evaluation"]:
+def append_pv_(weighted, info_row, i_log, log, n_samples_moving_average):
+    tag = "pv_s" if not weighted else "pv_w"
+    tag_label = "pv_approx_s" if not weighted else "pv_approx_w"
 
-        hparams_evaluation = hparam_str_evaluation_to_hparams(hparam_str_evaluation)
+    ns_ma = n_samples_moving_average[i_log].get(tag, None)
+    use_ma = ns_ma is not None
 
-        assert "gam" in hparams_evaluation.keys()
-        g = float( hparams_evaluation["gam"] )
-        gammas.append(g)
+    x = log["data"][tag]["steps"]
+    y = log["data"][tag]["values"]
+    label = latex_labels[tag_label]("")
 
-        l = float( hparams_evaluation["nreg"] ) if "nreg" in hparams_evaluation.keys() else None
-        lambdas.append(l)
+    info_plot = {
+        "x": x, "y": y,
+        "label": None if use_ma else label,
+        "color": "blue",
+        "alpha": 0.1 if use_ma else 1,
+        "plot_type": None,
+    }
+    info_row["plots"].append(info_plot)
 
-    # -------------------------------- #
+    if use_ma:
+        x_ma = x[ns_ma-1:]
+        y_ma = moving_average(y, ns_ma)
+        info_plot = {
+            "x": x_ma, "y": y_ma,
+            "label": label,
+            "color": colors[weighted],
+            "alpha": 1,
+            "plot_type": None,
+        }
+        info_row["plots"].append(info_plot)
+
+    return x
+
+def append_analytical(info_row, i_log, hlines, x_s, x_w):
+    x = [x_s, x_w][ np.random.randint(2) ]
+    for hline in hlines[i_log].get("pv", []):
+        info_hline = {
+            "y": hline["y"],
+            "xmin": np.min(x),
+            "xmax": np.max(x),
+            "label": hline["label"],
+            "color": "black",
+            "linestyle": hline["linestyle"],
+        }
+        info_row["hlines"].append(info_hline)
+
+def append_pv(
+        info_column,
+        i_log, log,
+        titles, ylims, n_samples_moving_average, hlines):
+
+    info_row = {}
+
+    info_row["plots"] = []
+    info_row["hlines"] = []
+
+    args = [ info_row, i_log, log, n_samples_moving_average, ]
+    x_s = append_pv_(True,  *args)
+    x_w = append_pv_(False, *args)
+
+    append_analytical(info_row, i_log, hlines, x_s, x_w)
+
+    info_row["title"] = titles[i_log]["pv"]
+    info_row["xlabel"] = "step" if i_log == 0 else None
+    info_row["ylabel"] = "policy value"
+    info_row["ylim"] = None if ylims is None else ylims[i_log].get("pv", None)
+
+    info_column.append(info_row)
+
+def append_loss(
+        info_column,
+        i_log, log,
+        titles, ylims, n_samples_moving_average, hlines):
+
+    info_row = {}
+
+    info_row["plots"] = []
+
+    ns_ma = None if n_samples_moving_average is None else n_samples_moving_average[i_log].get("loss", None)
+    use_ma = ns_ma is not None
+
+    x = log["data"]["loss"]["steps"]
+    y = log["data"]["loss"]["values"]
+    label = latex_labels["loss"]("")
+
+    info_plot = {
+        "x": x, "y": y,
+        "label": None if use_ma else label,
+        "color": "blue",
+        "alpha": 0.1 if use_ma else 1,
+    }
+    info_row["plots"].append(info_plot)
+
+    if use_ma:
+        x_ma = x[ns_ma-1:]
+        y_ma = moving_average(y, ns_ma)
+        info_plot = {
+            "x": x_ma, "y": y_ma,
+            "label": label,
+            "color": "blue",
+            "alpha": 1,
+        }
+        info_row["plots"].append(info_plot)
+
+    info_row["ylabel"] = "loss"
+    info_row["ylim"] = None if ylims is None else ylims[i_log].get("loss", None)
+
+    info_column.append(info_row)
+
+def get_logs_and_plot(
+        dir_base,
+        #
+        hyperparameters_evaluation,
+        hyperparameters_policy=None,
+        hyperparameters_dataset=None,
+        #
+        suptitle=None,
+        titles=None,
+        ylims=None,
+        n_samples_moving_average=None,
+        hlines=None,
+        #
+        append_extras=None,
+        #
+        dir_save=None, file_name=None,
+        verbosity=0,
+    ):
+
+    if append_extras is None: append_extras = []
+
+    logs = get_logs_from_hyperparameters(
+        dir_base,
+        hyperparameters_dataset,
+        hyperparameters_policy,
+        hyperparameters_evaluation,
+        verbosity,
+    )
 
     infos = []
+    for i_log, log in enumerate(logs):
+        info_column = []
 
-    Z = d["title"], d["xlim"], d["ylim_1"], d["ylim_2"], d["ylim_3"], d["n_ma_1"], d["n_ma_2"], d["n_ma_3"], gammas, lambdas
-    for z in safe_zip(*Z):
-        title, xlim_, ylim_1, ylim_2, ylim_3, n_ma_1, n_ma_2, n_ma_3, g, l = z
+        args = [
+            info_column,
+            i_log, log,
+            titles, ylims, n_samples_moving_average, hlines,
+        ]
 
-        ylabel =[ "policy value", "errors", "loss", ]
+        append_pv(*args)
+        append_loss(*args)
 
-        i_1 = { "tags": ["pv_s", "pv_w"], "title": title[0], "ylabel": ylabel[0], "xlim": xlim_, "ylim": ylim_1, "plot_type": plot_types[0], "n_moving_averages": n_ma_1, }
-        i_2 = { "tags": error_tags,       "title": title[1], "ylabel": ylabel[1], "xlim": xlim_, "ylim": ylim_2, "plot_type": plot_types[1], "n_moving_averages": n_ma_2, }
-        i_3 = { "tags": ["loss"],         "title": title[2], "ylabel": ylabel[2], "xlim": xlim_, "ylim": ylim_3, "plot_type": plot_types[2], "n_moving_averages": n_ma_3, }
+        for append_extra in append_extras:
+            append_extra(*args)
 
-        i_1["baselines"] = get_pv_baselines(gamma=g)
-        i = [i_1] + [i_2] * ( len(error_tags) > 0 ) + [i_3]
+        infos.append(info_column)
 
-        infos.append(i)
-
-    # -------------------------------- #
-
-    hparams = hparam_str_evaluation_to_hparams(hparam_str_evaluation)
-
-    parts_d  = {}
-
-    parts_d[ hparam_str_dict["gam"] ] = hparams["gam"]
-
-    parts_d[ hparam_str_dict["batchs"] ] = hparams["batchs"]
-
-    hd = [ hparams["hdp"], hparams["hdd"], ]
-    assert len( set(hd) ) == 1
-    parts_d[ "hidden-dimensions"] = random.choice(hd)
-
-    lr = [ hparams["lrp"], hparams["lrd"], ]
-    if "nlr" in hparams.keys(): lr += [ hparams["nlr"] ]
-    assert len( set(lr) ) == 1
-    parts_d["learning-rate"] = random.choice(lr)
-
-    reg = [ hparams["regp"], hparams["regd"], ]
-    assert len( set(reg) ) == 1
-    parts_d["mlp-regularizer"] = random.choice(reg)
-
-    parts_l = [ estimator_name, ]
-    for k, v in parts_d.items():
-        if hparams_title is not None:
-            if k not in hparams_title:
-                continue
-        parts_l.append( f"{k}={v}" )
-
-    suptitle = get_suptitle(gammas)
-    subtitle = ", ".join(parts_l)
-    title = suptitle + "\n" + subtitle
-
-    file_name = title \
-        .replace(" - ", "_") \
-        .replace("\n",  "_") \
-        .replace(", ",  "_")
-
-    # -------------------------------- #
-
-    plot_log(logs, infos, title, save_dir, file_name)
+    plot(infos, suptitle, dir_save, file_name)
 
 # ---------------------------------------------------------------- #

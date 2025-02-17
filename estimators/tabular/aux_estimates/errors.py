@@ -6,9 +6,9 @@ from utils.numpy import safe_divide
 
 # ---------------------------------------------------------------- #
 
-def get_error_aux_estimates(aux_estimates, analytical_solver):
+def get_error_auxiliary_estimates(auxiliary_estimates, analytical_solver):
 
-    d0_bar, dD_bar, P_bar, r_bar, n = aux_estimates
+    d0_bar, dD_bar, P_bar, r_bar, n = auxiliary_estimates
 
     d0 = analytical_solver.d0
     dD = analytical_solver.dD

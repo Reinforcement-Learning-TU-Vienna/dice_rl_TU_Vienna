@@ -2,10 +2,8 @@
 
 import numpy as np
 
-from utils.numpy import project_in, project_out
 from dice_rl_TU_Vienna.estimators.tabular.tabular_dice import TabularDice
-
-from utils.numpy import safe_divide
+from dice_rl_TU_Vienna.utils.numpy import project_in, project_out, safe_divide
 
 # ---------------------------------------------------------------- #
 
@@ -15,9 +13,9 @@ class TabularGradientDice(TabularDice):
 
     def solve_sdc(self, gamma, projected=False, **kwargs):
 
-        lam = kwargs["lam"]
+        lamda = kwargs["lamda"]
 
-        d0_bar, dD_bar, P_bar, r_bar, n = self.aux_estimates
+        d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 
         mask = dD_bar == 0
         (d0_, dD_), (P_,) = project_in(mask, (d0_bar, dD_bar), (P_bar,), projected)
@@ -30,11 +28,11 @@ class TabularGradientDice(TabularDice):
         B = safe_divide(A.T, dD_, zero_div_zero=-1)
 
         x = np.matmul(B, A)
-        y = lam / n * np.outer(d0_, d0_)
+        y = lamda / n * np.outer(d0_, d0_)
         a = x + y
 
         x = (1 - gamma) * np.matmul(B, d0_)
-        y = lam * d0_
+        y = lamda * d0_
         b = x + y
 
         sdc_ = np.linalg.solve(a, b)

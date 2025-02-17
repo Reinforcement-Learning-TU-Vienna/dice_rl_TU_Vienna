@@ -8,7 +8,7 @@ import os
 
 from dice_rl_TU_Vienna.estimators.get import get_gammas_2
 
-from utils.general import safe_zip
+from dice_rl_TU_Vienna.utils.general import safe_zip
 
 # ---------------------------------------------------------------- #
 
@@ -50,7 +50,7 @@ def plot_observations_difference(dataset_1, dataset_2, ylim=None):
 
 # ---------------------------------------------------------------- #
 
-def plot_success_rate_pv_error(success_rates, estimators, save_dir=None):
+def plot_sr_pv_error(suptitle, success_rates, estimators, dir=None):
     gammas = get_gammas_2()
 
     plt.figure()
@@ -62,7 +62,7 @@ def plot_success_rate_pv_error(success_rates, estimators, save_dir=None):
     for z in safe_zip(estimators, success_rates, colors, markers):
         estimator, success_rate, color, marker = z
 
-        y = [ np.abs( success_rate - estimator(gamma, scale=True) ) for gamma in gammas ]
+        y = [ np.abs( success_rate - estimator(gamma, scale=False) ) for gamma in gammas ]
         label = estimator.__name__
         plt.plot(x, y, label=label, color=color, marker=marker)
 
@@ -70,6 +70,7 @@ def plot_success_rate_pv_error(success_rates, estimators, save_dir=None):
 
     plt.grid(linestyle=":")
 
+    plt.suptitle(suptitle)
     plt.xlabel(r"$1 - \gamma$")
     plt.ylabel(r"$| \hat{\rho}^\pi(\gamma) \div (1 - \gamma) - \sigma |$")
     plt.legend()
@@ -78,13 +79,13 @@ def plot_success_rate_pv_error(success_rates, estimators, save_dir=None):
     plt.yscale("log")
     plt.gca().invert_xaxis()
 
-    if save_dir is not None:
+    if dir is not None:
 
-        if not tf.io.gfile.isdir(save_dir):
-            tf.io.gfile.makedirs(save_dir)
+        if not tf.io.gfile.isdir(dir):
+            tf.io.gfile.makedirs(dir)
 
-        file_name = f"success_rate_pv_error"
-        save_path = os.path.join(save_dir, file_name)
+        file_name = "sr_pv_error"
+        save_path = os.path.join(dir, file_name)
 
         plt.savefig(save_path, bbox_inches="tight")
 
@@ -96,7 +97,7 @@ def plot_pvs(
         estimators,
         gammas,
         projected, weighted,
-        modified, lam,
+        modified, lamda,
         #
         pvs, pv_lims, pv_ref, pv_lim_ref,
         labels,
@@ -108,7 +109,7 @@ def plot_pvs(
         scale_x=False, scale_y=False,
         scale_pv=False,
         ylim=None, legend=True,
-        save_dir=None):
+        dir=None):
 
     if errors:
         assert pv_ref is not None
@@ -146,7 +147,7 @@ def plot_pvs(
         if label is None:
             label = estimator.__name__
             if label == "TabularDice":         label += f", {modified=}"
-            if label == "TabularGradientDice": label += f", {lam=}"
+            if label == "TabularGradientDice": label += f", {lamda=}"
 
         if label == "": label = None
 
@@ -175,20 +176,21 @@ def plot_pvs(
 
     if legend: plt.legend()
     plt.suptitle(suptitle)
-    plt.title(f"{projected=}, {weighted=}")
+    title = f"{projected=}, {weighted=}"
+    plt.title(title)
 
     plt.ylim(ylim)
     plt.grid(linestyle=":")
 
     # -------------------------------- #
 
-    if save_dir is not None:
+    if dir is not None:
 
-        if not tf.io.gfile.isdir(save_dir):
-            tf.io.gfile.makedirs(save_dir)
+        if not tf.io.gfile.isdir(dir):
+            tf.io.gfile.makedirs(dir)
 
-        file_name = f"{suptitle}; {projected=}_{weighted=}_{legend=}"
-        save_path = os.path.join(save_dir, file_name)
+        file_name = f"{suptitle}; {title}; {legend=}"
+        save_path = os.path.join(dir, file_name)
 
         plt.savefig(save_path, bbox_inches="tight")
 
@@ -201,7 +203,7 @@ def plot_sdc_errors(
         estimators,
         gammas,
         projected,
-        modified, lam,
+        modified, lamda,
         #
         sdcs, sdc_lims, sdc_ref, sdc_lim_ref,
         colors, colors_lim,
@@ -209,7 +211,7 @@ def plot_sdc_errors(
         suptitle,
         one_minus_gamma,
         scale_x=False, scale_y=False, ylim=None, legend=True,
-        save_dir=None):
+        dir=None):
 
     if sdc_lims is not None:
         assert sdc_lim_ref is not None
@@ -239,7 +241,7 @@ def plot_sdc_errors(
 
         label = estimator.__name__
         if label == "TabularDice":         label += f", {modified=}"
-        if label == "TabularGradientDice": label += f", {lam=}"
+        if label == "TabularGradientDice": label += f", {lamda=}"
 
         plt.plot(x, y, label=label, color=color, marker=marker)
 
@@ -258,20 +260,21 @@ def plot_sdc_errors(
 
     if legend: plt.legend()
     plt.suptitle(suptitle)
-    plt.title(f"{projected=}")
+    title = f"{projected=}"
+    plt.title(title)
 
     plt.ylim(ylim)
     plt.grid(linestyle=":")
 
     # -------------------------------- #
 
-    if save_dir is not None:
+    if dir is not None:
 
-        if not tf.io.gfile.isdir(save_dir):
-            tf.io.gfile.makedirs(save_dir)
+        if not tf.io.gfile.isdir(dir):
+            tf.io.gfile.makedirs(dir)
 
-        file_name = f"{suptitle}; {projected=}_{legend=}"
-        save_path = os.path.join(save_dir, file_name)
+        file_name = f"{suptitle}; {title}; {legend=}"
+        save_path = os.path.join(dir, file_name)
 
         plt.savefig(save_path, bbox_inches="tight")
 

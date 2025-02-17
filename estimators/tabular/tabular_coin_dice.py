@@ -85,9 +85,9 @@ class TabularCoinDice(object):
 
     if not common_lib.is_categorical_spec(action_spec):
       raise ValueError('Action spec must be discrete and bounded.')
-    self._num_actions = action_spec.maximum + 1
+    self._n_actions = action_spec.maximum + 1
     self._dimension = 1 + (
-        self._num_states * self._num_actions
+        self._num_states * self._n_actions
         if self._obs_act else self._num_states)
 
     # For learning data weight
@@ -127,14 +127,14 @@ class TabularCoinDice(object):
 
   def _get_index(self, state, action):
     if self._obs_act:
-      return state * self._num_actions + action
+      return state * self._n_actions + action
     else:
       return state
 
   def _get_state_action_counts(self, env_step):
     if self._obs_act:
-      index = env_step.observation * self._num_actions + env_step.action
-      dim = self._num_states * self._num_actions
+      index = env_step.observation * self._n_actions + env_step.action
+      dim = self._num_states * self._n_actions
     else:
       # only count states
       index = env_step.observation
@@ -239,16 +239,16 @@ class TabularCoinDice(object):
     # Map states and actions to indices into tabular representation.
     initial_states = tf.tile(
         tf.reshape(initial_env_step.observation, [-1, 1]),
-        [1, self._num_actions])
+        [1, self._n_actions])
     initial_actions = tf.tile(
-        tf.reshape(tf.range(self._num_actions), [1, -1]),
+        tf.reshape(tf.range(self._n_actions), [1, -1]),
         [initial_env_step.observation.shape[0], 1])
     initial_nu_indices = self._get_index(initial_states, initial_actions)
 
     next_states = tf.tile(
-        tf.reshape(next_env_step.observation, [-1, 1]), [1, self._num_actions])
+        tf.reshape(next_env_step.observation, [-1, 1]), [1, self._n_actions])
     next_actions = tf.tile(
-        tf.reshape(tf.range(self._num_actions), [1, -1]),
+        tf.reshape(tf.range(self._n_actions), [1, -1]),
         [next_env_step.observation.shape[0], 1])
     next_nu_indices = self._get_index(next_states, next_actions)
     next_nu_indices = tf.where(
@@ -267,7 +267,7 @@ class TabularCoinDice(object):
           target_log_probabilities.shape[0],
       ])
     policy_ratios = tf.tile(
-        tf.reshape(policy_ratio, [-1, 1]), [1, self._num_actions])
+        tf.reshape(policy_ratio, [-1, 1]), [1, self._n_actions])
 
     # Bellman residual matrix of size [n_data, n_dim].
     a_vec = tf.one_hot(nu_indices, self._dimension) - tf.reduce_sum(
