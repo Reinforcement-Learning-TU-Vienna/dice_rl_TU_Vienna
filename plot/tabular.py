@@ -6,7 +6,7 @@ import tensorflow as tf
 
 import os
 
-from dice_rl_TU_Vienna.estimators.get import get_gammas_2
+from dice_rl_TU_Vienna.estimators.get import get_gammas_log10
 
 from dice_rl_TU_Vienna.utils.general import safe_zip
 
@@ -51,7 +51,7 @@ def plot_observations_difference(dataset_1, dataset_2, ylim=None):
 # ---------------------------------------------------------------- #
 
 def plot_sr_pv_error(suptitle, success_rates, estimators, dir=None):
-    gammas = get_gammas_2()
+    gammas = get_gammas_log10()
 
     plt.figure()
 

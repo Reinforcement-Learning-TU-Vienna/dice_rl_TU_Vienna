@@ -8,12 +8,12 @@ from dice_rl_TU_Vienna.utils.numpy import add_middle_means_log
 
 # ---------------------------------------------------------------- #
 
-def get_gammas_1():
-    return np.arange(0.1, 1, 0.1)
+def get_gammas(min=0.1, max=0.9, step=0.1):
+    return np.arange(min, max+step, step)
 
-def get_gammas_2(n=5):
+def get_gammas_log10(e_min=1, e_max=5, refinement=2):
     one_minus_gammas = add_middle_means_log(
-        0.1 ** np.arange(1, n+1), 2)
+        0.1 ** np.arange(e_min, e_max+1), refinement)
     gammas = 1 - one_minus_gammas
 
     return gammas
