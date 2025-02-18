@@ -23,20 +23,37 @@ def merge_dicts(*args):
 
     return d
 
-def dict_to_str(d, blacklist=None, whitelist=None):
-    if blacklist is None: blacklist = []
-    if whitelist is None: whitelist = d.keys()
+def filter_dict(d, blacklist=None, whitelist=None):
+    if not isinstance(d, dict): return d
 
-    d = {
-        k: v
+    blacklist_ = blacklist if blacklist is not None else []
+    whitelist_ = whitelist if whitelist is not None else d.keys()
+
+    return {
+        k: filter_dict(v, blacklist, whitelist)
             for k, v in d.items()
-                if k not in blacklist and k in whitelist
+                if k not in blacklist_ and k in whitelist_
     }
 
+def flatten_dict(d):
+    d_flattened = {}
+
+    for k, v in d.items():
+        if isinstance(v, dict):
+            v_flattened = flatten_dict(v)
+            d_flattened = merge_dicts(d_flattened, v_flattened)
+        else:
+            d_flattened[k] = v
+
+    return d_flattened
+
+def dict_to_str(d, blacklist=None, whitelist=None):
+    d_filtered = filter_dict(d, blacklist, whitelist)
+
     s = ""
-    for i, (k, v) in enumerate(d.items()):
+    for i, (k, v) in enumerate(d_filtered.items()):
         s += f"{k}={v}"
-        if i != len(d)-1: s += ", "
+        if i != len(d_filtered)-1: s += ", "
     return s
 
 # ---------------------------------------------------------------- #
