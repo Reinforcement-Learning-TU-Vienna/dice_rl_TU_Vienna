@@ -34,6 +34,9 @@ class NeuralGenDice(NeuralDice):
             dataset, preprocess_obs=None, preprocess_act=None, preprocess_rew=None,
             dir=None, get_recordings=None, other_hyperparameters=None, save_interval=100):
 
+        if other_hyperparameters is None: other_hyperparameters = {}
+        other_hyperparameters["lamda"] = lamda
+
         super().__init__(
             gamma, seed, batch_size,
             learning_rate, hidden_dimensions,
@@ -43,8 +46,6 @@ class NeuralGenDice(NeuralDice):
         )
 
         self.lamda = lamda
-
-        self.hyperparameters["lamda"] = lamda
 
     def set_up_networks(self):
         super().set_up_networks()

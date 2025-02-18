@@ -30,6 +30,9 @@ class NeuralDualDice(NeuralDice):
             dataset, preprocess_obs=None, preprocess_act=None, preprocess_rew=None,
             dir=None, get_recordings=None, other_hyperparameters=None, save_interval=100):
     
+        if other_hyperparameters is None: other_hyperparameters = {}
+        other_hyperparameters["p"] = p
+
         super().__init__(
             gamma, seed, batch_size,
             learning_rate, hidden_dimensions,
@@ -44,7 +47,5 @@ class NeuralDualDice(NeuralDice):
 
         self.p_fn = lambda x: tf.abs(x) ** p / p
         self.q_fn = lambda x: tf.abs(x) ** q / q
-
-        self.hyperparameters["p"] = p
 
 # ---------------------------------------------------------------- #
