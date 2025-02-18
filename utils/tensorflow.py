@@ -27,9 +27,7 @@ def learning_rate_hyperparameter(lr):
         }
 
     else:
-        hyperparameter = {
-            "value": str(lr)
-        }
+        hyperparameter = lr
 
     return hyperparameter
 
