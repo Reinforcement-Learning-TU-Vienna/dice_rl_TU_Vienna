@@ -1,7 +1,6 @@
 # ---------------------------------------------------------------- #
 
 import os
-import warnings
 
 import numpy as np
 import tensorflow as tf
@@ -19,10 +18,6 @@ from dice_rl_TU_Vienna.specs import get_observation_action_spec_continuous
 from dice_rl_TU_Vienna.utils.json import json_append
 from dice_rl_TU_Vienna.utils.tensorflow import learning_rate_hyperparameter
 from dice_rl_TU_Vienna.utils.seeds import set_all_seeds
-
-# ---------------------------------------------------------------- #
-
-# warnings.simplefilter("ignore", SyntaxWarning)
 
 # ---------------------------------------------------------------- #
 
