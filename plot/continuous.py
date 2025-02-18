@@ -11,7 +11,7 @@ from collections import defaultdict
 
 from dice_rl_TU_Vienna.latex import latex_labels
 from dice_rl_TU_Vienna.utils.general import safe_zip, shape, list_ify
-from dice_rl_TU_Vienna.utils.numpy import moving_average
+from dice_rl_TU_Vienna.utils.numpy import moving_average_N
 from dice_rl_TU_Vienna.utils.json import json_get_id
 from dice_rl_TU_Vienna.utils.os import os_path_join
 
@@ -119,39 +119,33 @@ def plot(infos, suptitle=None, dir_save=None, file_name=None):
 
 def get_logs_from_hyperparameters(
         dir_base,
-        hyperparameters_dataset,
-        hyperparameters_policy,
         hyperparameters_evaluation,
+        hyperparameters_dict=None,
         verbosity=0):
 
-    dir_log_0 = dir_base
+    if hyperparameters_dict is None: hyperparameters_dict = {}
 
-    id_dataset = None
-    if hyperparameters_dataset is not None:
-        file_dir = os.path.join(dir_log_0, "dataset.json")
-        dictionary = hyperparameters_dataset
-        id_dataset = json_get_id(file_dir, dictionary)
+    dir_log = dir_base
 
-    dir_log_1 = os_path_join(dir_log_0, id_dataset)
-
-    id_policy = None
-    if hyperparameters_policy is not None:
-        file_dir = os.path.join(dir_log_0, "policy.json")
-        dictionary = hyperparameters_policy
-        id_policy = json_get_id(file_dir, dictionary)
-
-    dir_log_2 = os_path_join(dir_log_1, id_policy)
+    for name, hyperparameters in hyperparameters_dict.items():
+        file_dir = os.path.join(dir_log, f"{name}.json")
+        dictionary = hyperparameters
+        id = json_get_id(file_dir, dictionary)
+        assert id is not None
+        dir_log = os.path.join(dir_log, id)
 
     if not isinstance(hyperparameters_evaluation, list):
         hyperparameters_evaluation = [ hyperparameters_evaluation ]
 
     logs = []
-    file_dir = os.path.join(dir_log_2, "evaluation.json")
+    file_dir = os.path.join(dir_log, "evaluation.json")
     for dictionary in hyperparameters_evaluation:
         id_evaluation = json_get_id(file_dir, dictionary)
+        assert id_evaluation is not None
+        log_dir = os.path.join(dir_log, id_evaluation)
 
         log = get_log(
-            log_dir=os_path_join(dir_log_2, id_evaluation),
+            log_dir=log_dir,
             verbosity=verbosity,
         )
         logs.append(log)
@@ -182,7 +176,7 @@ def append_pv_(weighted, info_row, i_log, log, n_samples_moving_average):
 
     if use_ma:
         x_ma = x[ns_ma-1:]
-        y_ma = moving_average(y, ns_ma)
+        y_ma = moving_average_N(y, ns_ma)
         info_plot = {
             "x": x_ma, "y": y_ma,
             "label": label,
@@ -256,7 +250,7 @@ def append_loss(
 
     if use_ma:
         x_ma = x[ns_ma-1:]
-        y_ma = moving_average(y, ns_ma)
+        y_ma = moving_average_N(y, ns_ma)
         info_plot = {
             "x": x_ma, "y": y_ma,
             "label": label,
@@ -274,8 +268,7 @@ def get_logs_and_plot(
         dir_base,
         #
         hyperparameters_evaluation,
-        hyperparameters_policy=None,
-        hyperparameters_dataset=None,
+        hyperparameters_dict=None,
         #
         suptitle=None,
         titles=None,
@@ -293,9 +286,8 @@ def get_logs_and_plot(
 
     logs = get_logs_from_hyperparameters(
         dir_base,
-        hyperparameters_dataset,
-        hyperparameters_policy,
         hyperparameters_evaluation,
+        hyperparameters_dict,
         verbosity,
     )
 
