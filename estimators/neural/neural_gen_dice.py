@@ -34,7 +34,9 @@ class NeuralGenDice(NeuralDice):
             dataset, preprocess_obs=None, preprocess_act=None, preprocess_rew=None,
             dir=None, get_recordings=None, other_hyperparameters=None, save_interval=100):
 
-        if other_hyperparameters is None: other_hyperparameters = {}
+        other_hyperparameters = {} \
+            if other_hyperparameters is None \
+            else other_hyperparameters.copy()
         other_hyperparameters["lamda"] = lamda
 
         super().__init__(
