@@ -9,10 +9,9 @@ from abc import ABC, abstractmethod
 from tqdm import tqdm
 from datetime import datetime
 
-from tensorflow.keras.utils import set_random_seed # type: ignore
 from tensorflow.keras.optimizers import SGD # type: ignore
 
-from dice_rl.networks.value_network import ValueNetwork
+from dice_rl_TU_Vienna.utils.networks.value_network import ValueNetwork
 
 from dice_rl_TU_Vienna.specs import get_observation_action_spec_continuous
 from dice_rl_TU_Vienna.utils.json import json_append
