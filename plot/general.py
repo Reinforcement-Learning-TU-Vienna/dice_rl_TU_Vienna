@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 
 from dice_rl_TU_Vienna.utils.numpy import moving_average_Z
 
+from matplotlib.lines import Line2D
+
 # ---------------------------------------------------------------- #
 
 def plot_histogram(
@@ -15,14 +17,18 @@ def plot_histogram(
         xscale=False, yscale=False,
     ):
 
-    data_mean = np.mean(data)
-    data_std  = np.std(data)
+    data_mean   = np.mean(data)
+    data_std    = np.std(data)
+    data_median = np.median(data)
+
+    plt.figure(figsize=(10, 5))
 
     plt.suptitle(
         f"{suptitle}" + "\n" + ", ".join([
             f"{bins=}",
-            "mean" + r"$\approx$" + str(round(data_mean, 3)),
-            "std"  + r"$\approx$" + str(round(data_std,  3)),
+            "mean"   + r"$\approx$" + np.format_float_scientific(data_mean,   precision=2),
+            "std"    + r"$\approx$" + np.format_float_scientific(data_std,    precision=2),
+            "median" + r"$\approx$" + np.format_float_scientific(data_median, precision=2),
         ])
     )
 
@@ -53,16 +59,24 @@ def plot_histogram(
         x=data_mean,
         ymin=0,
         ymax=counts_max,
-        color="black", linestyles=":",
+        color="black",
+        linestyles=":",
         label="mean",
     )
     plt.vlines(
-        x=data_mean + data_std,
+        x=data_median,
         ymin=0,
         ymax=counts_max,
-        color="black", linestyles="--",
-        label=f"mean $+$ std",
+        color="black",
+        linestyles=":",
+        label="median",
     )
+
+    marker_legend_mean   = Line2D([0], [0], color="black", marker="+", linestyle=":", label="mean")
+    marker_legend_median = Line2D([0], [0], color="black", marker="x", linestyle=":", label="median")
+
+    plt.scatter(x=data_mean,   y=np.sqrt(counts_max), color="black", marker="+")
+    plt.scatter(x=data_median, y=np.sqrt(counts_max), color="black", marker="x")
 
     plt.grid(linestyle=":")
 
@@ -75,7 +89,7 @@ def plot_histogram(
     plt.xlabel(xlabel)
     plt.ylabel("count")
 
-    plt.legend()
+    plt.legend(handles=[marker_legend_mean, marker_legend_median])
 
     plt.show()
 
