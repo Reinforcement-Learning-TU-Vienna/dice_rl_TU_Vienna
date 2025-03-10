@@ -1,11 +1,14 @@
 # ---------------------------------------------------------------- #
 
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 from dice_rl_TU_Vienna.utils.numpy import moving_average_Z
 
 from matplotlib.lines import Line2D
+from matplotlib.ticker import MaxNLocator
 
 # ---------------------------------------------------------------- #
 
@@ -15,22 +18,27 @@ def plot_histogram(
         moving_average_radius=None,
         xlim=None, ylim=None,
         xscale=False, yscale=False,
+        true_mean=None,
+        dir=None,
     ):
 
     data_mean   = np.mean(data)
     data_std    = np.std(data)
     data_median = np.median(data)
+    data_min    = np.min(data)
+    data_max    = np.max(data)
 
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(12, 6))
 
-    plt.suptitle(
-        f"{suptitle}" + "\n" + ", ".join([
-            f"{bins=}",
-            "mean"   + r"$\approx$" + np.format_float_scientific(data_mean,   precision=2),
-            "std"    + r"$\approx$" + np.format_float_scientific(data_std,    precision=2),
-            "median" + r"$\approx$" + np.format_float_scientific(data_median, precision=2),
-        ])
-    )
+    subtitle = ", ".join([
+        f"{bins=}",
+        "mean"   + r"$\approx$" + np.format_float_scientific(data_mean,   precision=2),
+        "std"    + r"$\approx$" + np.format_float_scientific(data_std,    precision=2),
+        "median" + r"$\approx$" + np.format_float_scientific(data_median, precision=2),
+        "min"    + r"$\approx$" + np.format_float_scientific(data_min,    precision=2),
+        "max"    + r"$\approx$" + np.format_float_scientific(data_max,    precision=2),
+    ])
+    plt.suptitle(suptitle + "\n" + subtitle)
 
     if xscale:
         bins = np.logspace(
@@ -42,7 +50,7 @@ def plot_histogram(
         alpha=0.25, color="blue",
     )
 
-    counts_max  = np.max(counts)
+    counts_max = np.max(counts)
 
     if moving_average_radius:
         radius = moving_average_radius
@@ -71,12 +79,42 @@ def plot_histogram(
         linestyles=":",
         label="median",
     )
+    plt.vlines(
+        x=data_min,
+        ymin=0,
+        ymax=counts_max,
+        color="black",
+        linestyles=":",
+        label="min",
+    )
+    plt.vlines(
+        x=data_max,
+        ymin=0,
+        ymax=counts_max,
+        color="black",
+        linestyles=":",
+        label="max",
+    )
+    if true_mean is not None:
+        legend_true_mean = plt.vlines(
+            x=1,
+            ymin=0,
+            ymax=counts_max,
+            color="black",
+            linestyles=":",
+            label="true mean",
+        )
 
     marker_legend_mean   = Line2D([0], [0], color="black", marker="+", linestyle=":", label="mean")
     marker_legend_median = Line2D([0], [0], color="black", marker="x", linestyle=":", label="median")
+    marker_legend_min    = Line2D([0], [0], color="black", marker="1", linestyle=":", label="min")
+    marker_legend_max    = Line2D([0], [0], color="black", marker="2", linestyle=":", label="max")
 
-    plt.scatter(x=data_mean,   y=np.sqrt(counts_max), color="black", marker="+")
-    plt.scatter(x=data_median, y=np.sqrt(counts_max), color="black", marker="x")
+    y = counts_max # np.sqrt(counts_max) if yscale else counts_max / 2
+    plt.scatter(x=data_mean,   y=y, color="black", marker="+")
+    plt.scatter(x=data_median, y=y, color="black", marker="x")
+    plt.scatter(x=data_min,    y=y, color="black", marker="1")
+    plt.scatter(x=data_max,    y=y, color="black", marker="2")
 
     plt.grid(linestyle=":")
 
@@ -86,10 +124,23 @@ def plot_histogram(
     plt.xlim(xlim)
     plt.ylim(ylim)
 
+    if not yscale: plt.gca().yaxis.set_major_locator( MaxNLocator(integer=True) )
+
     plt.xlabel(xlabel)
     plt.ylabel("count")
 
-    plt.legend(handles=[marker_legend_mean, marker_legend_median])
+    handles = [
+        marker_legend_mean, marker_legend_median,
+        marker_legend_min, marker_legend_max,
+    ]
+    if true_mean is not None:
+        handles.append(legend_true_mean) # type: ignore
+    plt.legend(handles=handles)
+
+    if dir is not None:
+        file_name = suptitle + "; " + subtitle.replace("$\\approx$", "=")
+        save_path = os.path.join(dir, f"{file_name}.png")
+        plt.savefig(save_path, bbox_inches="tight")
 
     plt.show()
 
