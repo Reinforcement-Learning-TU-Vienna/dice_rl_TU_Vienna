@@ -133,8 +133,6 @@ def get_dataset(dir_base, env, get_act, hyperparameters, verbosity=0):
         if verbosity > 0: print("saving dataset")
         id_dataset = save_dataset(dir_base, dataset, hyperparameters, verbosity)
 
-    assert dataset is not None
-    assert id_dataset is not None
     return dataset, id_dataset
 
 # ---------------------------------------------------------------- #
