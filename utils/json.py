@@ -22,7 +22,7 @@ def json_append(file_path, dictionary):
         json.dump(content, file, indent=4)
 
 
-def json_get_id(file_path, dictionary):
+def json_get_id(file_path, dictionary, asserting=True):
     if not os.path.exists(file_path): return
 
     with open(file_path, "r") as file:
@@ -33,6 +33,8 @@ def json_get_id(file_path, dictionary):
     for c in content:
         if dictionary == c["data"]:
             id = c["id"]
+
+    if asserting: assert id is not None, (file_path, dictionary)
 
     return id
 
