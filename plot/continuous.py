@@ -55,7 +55,7 @@ def plot(infos, suptitle=None, dir_save=None, file_name=None):
         ncols=n_cols,
         squeeze=False,
         tight_layout=True,
-        figsize=(5*n_cols, 3*n_rows),
+        figsize=(6*n_cols, 3*n_rows),
     )
 
     for i, (info_column, ax_column) in enumerate( safe_zip(infos, axs.T) ):
@@ -131,8 +131,7 @@ def get_logs_from_hyperparameters(
         file_dir = os.path.join(dir_log, f"{name}.json")
         dictionary = hyperparameters
         id = json_get_id(file_dir, dictionary)
-        assert id is not None
-        dir_log = os.path.join(dir_log, id)
+        dir_log = os.path.join(dir_log, id) # type: ignore
 
     if not isinstance(hyperparameters_evaluation, list):
         hyperparameters_evaluation = [ hyperparameters_evaluation ]
@@ -141,8 +140,7 @@ def get_logs_from_hyperparameters(
     file_dir = os.path.join(dir_log, "evaluation.json")
     for dictionary in hyperparameters_evaluation:
         id_evaluation = json_get_id(file_dir, dictionary)
-        assert id_evaluation is not None
-        log_dir = os.path.join(dir_log, id_evaluation)
+        log_dir = os.path.join(dir_log, id_evaluation) # type: ignore
 
         log = get_log(
             log_dir=log_dir,
@@ -158,7 +156,7 @@ def append_pv_(weighted, info_row, i_log, log, n_samples_moving_average):
     tag = "pv_s" if not weighted else "pv_w"
     tag_label = "pv_approx_s" if not weighted else "pv_approx_w"
 
-    ns_ma = n_samples_moving_average[i_log].get(tag, None)
+    ns_ma = None if n_samples_moving_average is None else n_samples_moving_average[i_log].get(tag, None)
     use_ma = ns_ma is not None
 
     x = log["data"][tag]["steps"]
@@ -168,7 +166,7 @@ def append_pv_(weighted, info_row, i_log, log, n_samples_moving_average):
     info_plot = {
         "x": x, "y": y,
         "label": None if use_ma else label,
-        "color": "blue",
+        "color": colors[weighted],
         "alpha": 0.1 if use_ma else 1,
         "plot_type": None,
     }
