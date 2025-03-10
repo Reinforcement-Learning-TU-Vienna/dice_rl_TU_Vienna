@@ -118,14 +118,14 @@ def plot(infos, suptitle=None, dir_save=None, file_name=None):
 # ---------------------------------------------------------------- #
 
 def get_logs_from_hyperparameters(
-        dir_base,
+        dir_data,
         hyperparameters_evaluation,
         hyperparameters_dict=None,
         verbosity=0):
 
     if hyperparameters_dict is None: hyperparameters_dict = {}
 
-    dir_log = dir_base
+    dir_log = dir_data
 
     for name, hyperparameters in hyperparameters_dict.items():
         file_dir = os.path.join(dir_log, f"{name}.json")
@@ -263,7 +263,7 @@ def append_loss(
     info_column.append(info_row)
 
 def get_logs_and_plot(
-        dir_base,
+        dir_data,
         #
         hyperparameters_evaluation,
         hyperparameters_dict=None,
@@ -283,7 +283,7 @@ def get_logs_and_plot(
     if append_extras is None: append_extras = []
 
     logs = get_logs_from_hyperparameters(
-        dir_base,
+        dir_data,
         hyperparameters_evaluation,
         hyperparameters_dict,
         verbosity,

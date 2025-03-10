@@ -82,11 +82,11 @@ def create_dataset_from_env(env, get_act, hyperparameters, verbosity=0):
     return pd.DataFrame(dataset)
 
 
-def save_dataset(dir_base, dataset, hyperparameters, verbosity=0):
-    file_path_json = os.path.join(dir_base, "dataset.json")
+def save_dataset(dir_data, dataset, hyperparameters, verbosity=0):
+    file_path_json = os.path.join(dir_data, "dataset.json")
 
     id_dataset = datetime.now().isoformat()
-    dir_dataset = os.path.join(dir_base, id_dataset)
+    dir_dataset = os.path.join(dir_data, id_dataset)
     file_path_parquet = os.path.join(dir_dataset, "dataset.parquet")
 
     hyperparameters_labeled = {
@@ -105,15 +105,15 @@ def save_dataset(dir_base, dataset, hyperparameters, verbosity=0):
     return id_dataset
 
 
-def get_dataset(dir_base, env, get_act, hyperparameters, verbosity=0):
-    file_path_json = os.path.join(dir_base, "dataset.json")
+def get_dataset(dir_data, env, get_act, hyperparameters, verbosity=0):
+    file_path_json = os.path.join(dir_data, "dataset.json")
     loaded = False
 
     if verbosity > 0: print(f"trying to find id_dataset in {file_path_json}")
     id_dataset = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
 
     if id_dataset is not None:
-        dir_dataset = os.path.join(dir_base, id_dataset)
+        dir_dataset = os.path.join(dir_data, id_dataset)
         file_path_parquet = os.path.join(dir_dataset, f"dataset.parquet")
 
         if verbosity > 0: print(f"trying to load dataset from {file_path_parquet}")
@@ -131,7 +131,7 @@ def get_dataset(dir_base, env, get_act, hyperparameters, verbosity=0):
         json_remove_by_dict(file_path=file_path_json, dictionary=hyperparameters)
 
         if verbosity > 0: print("saving dataset")
-        id_dataset = save_dataset(dir_base, dataset, hyperparameters, verbosity)
+        id_dataset = save_dataset(dir_data, dataset, hyperparameters, verbosity)
 
     return dataset, id_dataset
 

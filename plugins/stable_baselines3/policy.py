@@ -27,11 +27,11 @@ def create_model_from_env(model_type, env, hyperparameters):
     return model
 
 
-def save_model(dir_base, model, hyperparameters, verbosity=0):
-    file_path_json = os.path.join(dir_base, "policy.json")
+def save_model(dir_data, model, hyperparameters, verbosity=0):
+    file_path_json = os.path.join(dir_data, "policy.json")
 
     id_policy = datetime.now().isoformat()
-    dir_policy = os.path.join(dir_base, id_policy)
+    dir_policy = os.path.join(dir_data, id_policy)
     file_path_zip = os.path.join(dir_policy, "policy.zip")
 
     hyperparameters_labeled = {
@@ -50,15 +50,15 @@ def save_model(dir_base, model, hyperparameters, verbosity=0):
     return id_policy
 
 
-def get_model(model_type, dir_base, env, hyperparameters, verbosity=0):
-    file_path_json = os.path.join(dir_base, "policy.json")
+def get_model(model_type, dir_data, env, hyperparameters, verbosity=0):
+    file_path_json = os.path.join(dir_data, "policy.json")
     loaded = False
 
     if verbosity > 0: print(f"trying to find id_policy in {file_path_json}")
     id_policy = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
 
     if id_policy is not None:
-        dir_policy = os.path.join(dir_base, id_policy)
+        dir_policy = os.path.join(dir_data, id_policy)
         file_path_zip = os.path.join(dir_policy, "policy.zip")
 
         if verbosity > 0: print(f"trying to load policy from {file_path_zip}")
@@ -76,16 +76,16 @@ def get_model(model_type, dir_base, env, hyperparameters, verbosity=0):
         json_remove_by_dict(file_path=file_path_json, dictionary=hyperparameters)
 
         if verbosity > 0: print("saving dataset")
-        id_policy = save_model(dir_base, model, hyperparameters, verbosity)
+        id_policy = save_model(dir_data, model, hyperparameters, verbosity)
 
     return model, id_policy
 
 
-def get_model_PPO(dir_base, env, hyperparameters, verbosity=0):
-    return get_model(PPO, dir_base, env, hyperparameters, verbosity)
+def get_model_PPO(dir_data, env, hyperparameters, verbosity=0):
+    return get_model(PPO, dir_data, env, hyperparameters, verbosity)
 
 
-def get_model_MaskablePPO(dir_base, env, hyperparameters, verbosity=0):
-    return get_model(MaskablePPO, dir_base, env, hyperparameters, verbosity)
+def get_model_MaskablePPO(dir_data, env, hyperparameters, verbosity=0):
+    return get_model(MaskablePPO, dir_data, env, hyperparameters, verbosity)
 
 # ---------------------------------------------------------------- #
