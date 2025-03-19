@@ -142,6 +142,7 @@ def dollar(f):
 latex_labels = {
     "pv":  dollar(latex_pv),
     "sdc": dollar(latex_sdc),
+    "pv_approx":  dollar(latex_pv_approx),
     "pv_approx_s":  dollar(latex_pv_approx_s),
     "pv_approx_w":  dollar(latex_pv_approx_w),
     "sdc_approx": dollar(latex_sdc_approx),
