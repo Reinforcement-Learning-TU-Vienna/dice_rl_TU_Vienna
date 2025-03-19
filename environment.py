@@ -57,7 +57,7 @@ def test_env(
         n_obs_per_episode["all"].append( counter+1 )
 
     return {
-        k: ( np.mean(v), np.std(v) )
+        k: { "mean": np.mean(v), "std": np.std(v), }
             for k, v in n_obs_per_episode.items()
     }
 
