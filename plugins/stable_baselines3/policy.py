@@ -2,6 +2,9 @@
 
 import os
 
+import torch
+
+import numpy as np
 import tensorflow as tf
 
 from datetime import datetime
@@ -80,12 +83,41 @@ def get_model(model_type, dir_data, env, hyperparameters, verbosity=0):
 
     return model, id_policy
 
-
 def get_model_PPO(dir_data, env, hyperparameters, verbosity=0):
-    return get_model(PPO, dir_data, env, hyperparameters, verbosity)
-
+    model_type = PPO
+    return get_model(model_type, dir_data, env, hyperparameters, verbosity)
 
 def get_model_MaskablePPO(dir_data, env, hyperparameters, verbosity=0):
-    return get_model(MaskablePPO, dir_data, env, hyperparameters, verbosity)
+    model_type = MaskablePPO
+    return get_model(model_type, dir_data, env, hyperparameters, verbosity)
+
+
+def get_probs(obs, get_distribution, n_act):
+    o = obs
+    o = np.array(o)
+    if tf.rank(o) == 0: o = tf.reshape(o, shape=[1, 1])
+    o = torch.tensor(o)
+
+    distribution = get_distribution(o)
+
+    logits = np.array([
+        distribution.log_prob( torch.tensor(action) ).detach().numpy()
+            for action in range(n_act)
+    ]).T
+    probs = tf.nn.softmax(logits)
+    probs = np.array(probs)
+
+    return probs
+
+def get_probs_PPO(obs, model, n_act):
+    get_distribution = lambda o: model.policy.get_distribution(o)
+
+    return get_probs(obs, get_distribution, n_act)
+
+def get_probs_MaskablePPO(obs, model, action_masks):
+    n_obs, n_act = action_masks.shape
+    get_distribution = lambda o: model.policy.get_distribution(o, action_masks[o])
+
+    return get_probs(obs, get_distribution, n_act)
 
 # ---------------------------------------------------------------- #
