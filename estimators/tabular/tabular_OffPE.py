@@ -84,8 +84,6 @@ class AuxiliaryEstimates(object):
         self.r_bar  = np.zeros(self.dimension)
         self.n      = len(self.dataset)
 
-        from dice_rl_TU_Vienna.estimators.tabular.utils import obs_act_to_index
-
         pbar = self.dataset.iterrows()
         if self.verbosity > 0: pbar = tqdm(pbar, total=self.n)
 
@@ -104,16 +102,16 @@ class AuxiliaryEstimates(object):
 
             self.r_bar[index] += experience.rew
 
-        self.d0_hat = self.d0_bar / self.n
-        self.dD_hat = self.dD_bar / self.n
-        self.P_hat = safe_divide(self.P_bar.T, self.dD_bar).T
-        self.r_hat = safe_divide(self.r_bar, self.dD_bar)
-
     @property
     def bar(self): return self.d0_bar, self.dD_bar, self.P_bar, self.r_bar, self.n
 
     @property
-    def hat(self): return self.d0_hat, self.dD_hat, self.P_hat, self.r_hat
+    def hat(self):
+        d0_hat = self.d0_bar / self.n
+        dD_hat = self.dD_bar / self.n
+        P_hat = safe_divide(self.P_bar.T, self.dD_bar).T
+        r_hat = safe_divide(self.r_bar, self.dD_bar)
+        return d0_hat, dD_hat, P_hat, r_hat
 
 # ---------------------------------------------------------------- #
 
