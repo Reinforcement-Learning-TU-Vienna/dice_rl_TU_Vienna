@@ -27,7 +27,7 @@ class TabularDice(TabularOffPE):
         d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 
         a = np.sum(r_bar * w_hat)
-        b = n if weighted else np.sum(dD_bar * w_hat)
+        b = n if not weighted else np.sum(dD_bar * w_hat)
 
         rho_hat = a / b
 
