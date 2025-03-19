@@ -28,19 +28,30 @@ def plot_histogram(
     data_min    = np.min(data)
     data_max    = np.max(data)
 
-    plt.figure(figsize=(12, 6))
+    u, c = np.unique(data, return_counts=True)
+    n_eq_0 = np.sum(c[u == 0])
+    n_le_0 = np.sum(c[u < 0])
+    n_ge_0 = np.sum(c[u > 0])
 
-    subtitle = ", ".join([
-        f"{bins=}",
+    info = ", ".join([
         "mean"   + r"$\approx$" + np.format_float_scientific(data_mean,   precision=2),
         "std"    + r"$\approx$" + np.format_float_scientific(data_std,    precision=2),
         "median" + r"$\approx$" + np.format_float_scientific(data_median, precision=2),
         "min"    + r"$\approx$" + np.format_float_scientific(data_min,    precision=2),
         "max"    + r"$\approx$" + np.format_float_scientific(data_max,    precision=2),
+    ]) + "\n" + ", ".join([
+        r"$\# \{ i \mid x_i < 0 \} = " + str(n_le_0) + "$",
+        r"$\# \{ i \mid x_i = 0 \} = " + str(n_eq_0) + "$",
+        r"$\# \{ i \mid x_i > 0 \} = " + str(n_ge_0) + "$",
     ])
+
+    plt.figure(figsize=(12, 6), tight_layout=True)
+
+    subtitle = f"{bins=}"
     plt.suptitle(suptitle + "\n" + subtitle)
 
     if xscale:
+        data = data[data > 0]
         bins = np.logspace(
             np.log10(np.min(data)), np.log10(np.max(data)), bins)
 
@@ -126,7 +137,7 @@ def plot_histogram(
 
     if not yscale: plt.gca().yaxis.set_major_locator( MaxNLocator(integer=True) )
 
-    plt.xlabel(xlabel)
+    plt.xlabel(xlabel + "\n"*2 + info)
     plt.ylabel("count")
 
     handles = [
