@@ -82,11 +82,11 @@ def create_dataset_from_env(env, get_act, hyperparameters, verbosity=0):
     return pd.DataFrame(dataset)
 
 
-def save_dataset(dir_data, dataset, hyperparameters, verbosity=0):
-    file_path_json = os.path.join(dir_data, "dataset.json")
+def save_dataset(dir, dataset, hyperparameters, verbosity=0):
+    file_path_json = os.path.join(dir, "dataset.json")
 
     id_dataset = datetime.now().isoformat()
-    dir_dataset = os.path.join(dir_data, id_dataset)
+    dir_dataset = os.path.join(dir, id_dataset)
     file_path_parquet = os.path.join(dir_dataset, "dataset.parquet")
 
     hyperparameters_labeled = {
@@ -105,15 +105,22 @@ def save_dataset(dir_data, dataset, hyperparameters, verbosity=0):
     return id_dataset
 
 
-def get_dataset(dir_data, env, get_act, hyperparameters, verbosity=0):
-    file_path_json = os.path.join(dir_data, "dataset.json")
+def get_dataset(
+        dir,
+        create_dataset, args_create_dataset,
+        hyperparameters,
+        postprocessing=None,
+        verbosity=0,
+    ):
+
+    file_path_json = os.path.join(dir, "dataset.json")
     loaded = False
 
     if verbosity > 0: print(f"trying to find id_dataset in {file_path_json}")
     id_dataset = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
 
     if id_dataset is not None:
-        dir_dataset = os.path.join(dir_data, id_dataset)
+        dir_dataset = os.path.join(dir, id_dataset)
         file_path_parquet = os.path.join(dir_dataset, f"dataset.parquet")
 
         if verbosity > 0: print(f"trying to load dataset from {file_path_parquet}")
@@ -125,14 +132,55 @@ def get_dataset(dir_data, env, get_act, hyperparameters, verbosity=0):
         if verbosity > 0: print("failed to load")
         if verbosity > 0: print("creating dataset from environment")
 
-        dataset = create_dataset_from_env(env, get_act, hyperparameters, verbosity)
+        dataset = create_dataset(*args_create_dataset, hyperparameters, verbosity)
+        if postprocessing is not None:
+            dataset = postprocessing(dataset)
 
         if verbosity > 0: print(f"removing dataset hyperparameters from {file_path_json}")
         json_remove_by_dict(file_path=file_path_json, dictionary=hyperparameters)
 
         if verbosity > 0: print("saving dataset")
-        id_dataset = save_dataset(dir_data, dataset, hyperparameters, verbosity)
+        id_dataset = save_dataset(dir, dataset, hyperparameters, verbosity)
 
+    assert id_dataset is not None
     return dataset, id_dataset
+
+
+def get_dataset_from_env(
+        dir,
+        env, get_act,
+        hyperparameters,
+        postprocessing=None,
+        verbosity=0,
+    ):
+
+    create_dataset = create_dataset_from_env
+    args_create_dataset = (env, get_act)
+    return get_dataset(
+        dir,
+        create_dataset, args_create_dataset,
+        hyperparameters,
+        postprocessing,
+        verbosity,
+    )
+
+
+def get_dataset_from_df(
+        dir,
+        df,
+        hyperparameters,
+        postprocessing=None,
+        verbosity=0,
+    ):
+
+    create_dataset = lambda hyperparameters, verbosity=0: df
+    args_create_dataset = ()
+    return get_dataset(
+        dir,
+        create_dataset, args_create_dataset,
+        hyperparameters,
+        postprocessing,
+        verbosity,
+    )
 
 # ---------------------------------------------------------------- #
