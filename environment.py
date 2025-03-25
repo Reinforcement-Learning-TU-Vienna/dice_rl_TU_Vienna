@@ -4,7 +4,7 @@ import numpy as np
 
 from tqdm import tqdm
 
-from gymnasium.wrappers.time_limit import TimeLimit
+from gymnasium.wrappers import TimeLimit
 
 # ---------------------------------------------------------------- #
 
