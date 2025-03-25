@@ -50,7 +50,7 @@ def test_estimator(estimator_DICE, gamma, projected, weighted, **kwargs):
     # -------------------------------- #
 
 
-def test_auxiliary_estimates(auxiliary_estimates, title_prefix, dir=None):
+def test_auxiliary_estimates(auxiliary_estimates, title_prefix, dir=None, epsilon=1e-4):
 
     if dir is not None:
         if not tf.io.gfile.isdir(dir):
@@ -77,30 +77,28 @@ def test_auxiliary_estimates(auxiliary_estimates, title_prefix, dir=None):
 
     d0_bar_mask = d0_bar[~mask]
     dD_bar_mask = dD_bar[~mask]
-    P_bar_mask = P_bar[~mask, :][:, ~mask]
-    r_bar_mask = dD_bar[~mask]
+    P_bar_mask  = P_bar[~mask, :][:, ~mask]
+    r_bar_mask  = r_bar[~mask]
 
     # -------------------------------- #
 
-    print("(s, a) visited:")
-    a = np.sum(dD_bar != 0)
-    r = a / len(dD_bar)
+    print("# (s, a) visited:")
+    a = np.sum(~mask); r = a / len(dD_bar)
     print({"absolute": a, "relative": r})
 
-    print("(s, a) not visited:")
-    a = np.sum(dD_bar == 0)
-    r = a / len(dD_bar)
+    print("# (s, a) not visited:")
+    a = np.sum(mask); r = a / len(dD_bar)
     print({"absolute": a, "relative": r})
 
     print()
     x = np.sum(P_bar[mask, :] != 0)
     y = np.sum(P_bar[:, mask] != 0)
-    s_x = "# dD_bar[i] == 0, but P_bar[i, :] != 0:"
-    s_y = "# dD_bar[i] == 0, but P_bar[:, i] != 0:"
+    s_x = r"#{i: dD_bar[i] == 0, P_bar[i, :] != 0} ="
+    s_y = r"#{i: dD_bar[i] == 0, P_bar[:, i] != 0} ="
     print(s_x, x)
     print(s_y, y)
     z = np.sum(d0_bar[mask] != 0)
-    s_z = "# dD_bar[i], but d0_bar[i] != 0:"
+    s_z = r"#{i: dD_bar[i] == 0, d0_bar[i] != 0} ="
     print(s_z, z)
 
     print()
@@ -162,7 +160,7 @@ def test_auxiliary_estimates(auxiliary_estimates, title_prefix, dir=None):
 
     # -------------------------------- #
 
-    def test_sum(bar, mask=False, epsilon=1e-4):
+    def test_sum(bar, mask=False):
 
         d0_bar, dD_bar, P_bar, r_bar, n = bar
 
