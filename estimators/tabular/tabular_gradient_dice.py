@@ -11,8 +11,9 @@ class TabularGradientDice(TabularDice):
     @property
     def __name__(self): return "TabularGradientDice"
 
-    def solve_sdc(self, gamma, projected=False, **kwargs):
+    def solve_sdc(self, gamma, **kwargs):
 
+        projected = kwargs["projected"]
         lamda = kwargs["lamda"]
 
         d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar

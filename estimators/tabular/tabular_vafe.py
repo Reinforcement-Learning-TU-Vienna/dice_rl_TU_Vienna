@@ -11,7 +11,9 @@ class TabularVafe(TabularOffPE):
     @property
     def __name__(self): return "TabularVafe"
 
-    def solve_vaf(self, gamma, projected, **kwargs):
+    def solve_vaf(self, gamma, **kwargs):
+
+        projected = kwargs["projected"]
 
         d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 
@@ -33,11 +35,13 @@ class TabularVafe(TabularOffPE):
 
         return rho_hat
 
-    def solve(self, gamma, projected, **kwargs):
+    def solve(self, gamma, **kwargs):
 
-        Q_hat, info = self.solve_vaf(gamma, projected, **kwargs)
+        Q_hat, info = self.solve_vaf(gamma, **kwargs)
         rho_hat = self.solve_pv(gamma, Q_hat, info)
 
-        return rho_hat, Q_hat, info
+        info["Q_hat"] = Q_hat
+
+        return rho_hat, info
 
 # ---------------------------------------------------------------- #

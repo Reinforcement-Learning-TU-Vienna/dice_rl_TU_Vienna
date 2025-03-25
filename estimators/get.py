@@ -20,53 +20,34 @@ def get_gammas_log10(e_min=1, e_max=5, refinement=2):
 
 # ---------------------------------------------------------------- #
 
-def get_pv_OnPE(estimator, gamma, *args):
-    pv = estimator(gamma)
+def get_pv(estimator, gamma, **kwargs):
+    pv, _ = estimator.solve(gamma, **kwargs)
     return pv
 
-def get_pv_OffPE(estimator, gamma, *args):
-    projected, weighted, modified, lamda = args
-
-    pv, *_ = estimator.solve(
-        gamma, projected,
-        weighted=weighted,
-        modified=modified, lamda=lamda,
-    )
-    return pv
-
-def get_sdc(estimator, gamma, *args):
-    projected, modified, lamda = args
-
-    sdc, _ = estimator.solve_sdc(
-        gamma, projected,
-        modified=modified, lamda=lamda,
-    )
+def get_sdc(estimator, gamma, **kwargs):
+    sdc, _ = estimator.solve_sdc(gamma, **kwargs)
     return sdc
 
-def get_vaf(estimator, gamma, *args):
-    projected, = args
-
-    vaf, _ = estimator.solve_vaf(
-        gamma, projected,
-    )
+def get_vaf(estimator, gamma, **kwargs):
+    vaf, _ = estimator.solve_vaf(gamma, **kwargs)
     return vaf
 
 
 def apply_get(
-        get, file_name,
+        get,
         estimator_s, gamma_s,
         verbosity=0,
-        *args):
+        **kwargs):
 
     if isinstance(estimator_s, list):
         pbar = estimator_s
         if verbosity == 1: pbar = tqdm(pbar)
         return np.array([
             apply_get(
-                get, file_name,
+                get,
                 estimator, gamma_s,
                 verbosity,
-                *args
+                **kwargs,
             )
                 for estimator in pbar
         ])
@@ -76,59 +57,56 @@ def apply_get(
         if verbosity == 2: pbar = tqdm(pbar)
         array = np.array([
             apply_get(
-                get, file_name,
+                get,
                 estimator_s, gamma,
                 verbosity,
-                *args
+                **kwargs,
             )
                 for gamma in pbar
         ])
 
         return array
 
-    return get(estimator_s, gamma_s, *args)
+    return get(estimator_s, gamma_s, **kwargs)
 
 
-def get_pv_s_OnPE(
+def get_pv_s(
         estimator_s, gamma_s,
-        verbosity=0, ):
+        verbosity=0,
+        **kwargs,
+    ):
 
     return apply_get(
-        get_pv_OnPE, "pv",
-        estimator_s, gamma_s,
-        verbosity, )
-
-def get_pv_s_OffPE(
-        estimator_s, gamma_s,
-        projected, weighted, modified, lamda,
-        verbosity=0, ):
-
-    return apply_get(
-        get_pv_OffPE, "pv",
+        get_pv,
         estimator_s, gamma_s,
         verbosity,
-        projected, weighted, modified, lamda, )
+        **kwargs,
+    )
 
 def get_sdc_s(
         estimator_s, gamma_s,
-        projected, modified, lamda,
-        verbosity=0, ):
+        verbosity=0,
+        **kwargs,
+    ):
 
     return apply_get(
-        get_sdc, "sdc",
+        get_sdc,
         estimator_s, gamma_s,
         verbosity,
-        projected, modified, lamda, )
+        **kwargs,
+    )
 
 def get_vaf_s(
         estimator_s, gamma_s,
-        projected,
-        verbosity=0, ):
+        verbosity=0,
+        **kwargs,
+    ):
 
     return apply_get(
-        get_vaf, "vaf",
+        get_vaf,
         estimator_s, gamma_s,
         verbosity,
-        projected, )
+        **kwargs,
+    )
 
 # ---------------------------------------------------------------- #

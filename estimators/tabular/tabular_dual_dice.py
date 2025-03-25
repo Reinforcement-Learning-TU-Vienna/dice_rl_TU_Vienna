@@ -11,7 +11,9 @@ class TabularDualDice(TabularDice):
     @property
     def __name__(self): return "TabularDualDice"
 
-    def solve_sdc(self, gamma, projected=False, **kwargs):
+    def solve_sdc(self, gamma, **kwargs):
+
+        projected = kwargs["projected"]
 
         d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 

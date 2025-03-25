@@ -12,9 +12,10 @@ class TabularDice(TabularOffPE):
     @property
     def __name__(self): return "TabularDice"
 
-    def solve_sdc(self, gamma, projected, **kwargs):
+    def solve_sdc(self, gamma, **kwargs):
 
-        modified = kwargs["modified"]
+        projected = kwargs["projected"]
+        modified  = kwargs["modified"]
 
         d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 
@@ -26,20 +27,22 @@ class TabularDice(TabularOffPE):
     def solve_pv(self, w_hat, weighted):
         d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 
-        a = np.sum(r_bar * w_hat)
-        b = n if not weighted else np.sum(dD_bar * w_hat)
+        a = np.dot(r_bar, w_hat)
+        b = n if not weighted else np.dot(dD_bar, w_hat)
 
         rho_hat = a / b
 
         return rho_hat
 
-    def solve(self, gamma, projected, **kwargs):
+    def solve(self, gamma, **kwargs):
 
         weighted = kwargs["weighted"]
 
-        w_hat, info = self.solve_sdc(gamma, projected, **kwargs)
+        w_hat, info = self.solve_sdc(gamma, **kwargs)
         rho_hat = self.solve_pv(w_hat, weighted)
 
-        return rho_hat, w_hat, info
+        info["w_hat"] = w_hat
+
+        return rho_hat, info
 
 # ---------------------------------------------------------------- #

@@ -40,42 +40,61 @@ class AnalyticalSolver(ABC):
     def get_distributions(self):
         pass
 
-    def get_avf(self, gamma, projected=False):
+    def solve_avf(self, gamma, **kwargs):
+        projected = kwargs["projected"]
+
         return solve_forwards_bellman_equations(
             dD=self.dD, r=self.r, P=self.P, gamma=gamma, projected=projected)
 
-    def get_sdc(self, gamma, projected=False):
+    def solve_sdc(self, gamma, **kwargs):
+        projected = kwargs["projected"]
+
         return solve_backwards_bellman_equations(
             d0=self.d0, dD=self.dD, P=self.P, gamma=gamma, projected=projected)
 
-    def get_pv_primal(self, gamma, Q):
+    def solve_pv_primal(self, gamma, Q):
         return (1 - gamma) * np.dot(self.d0, Q)
 
-    def get_pv_dual(self, sd):
+    def solve_pv_dual(self, sd):
         return np.dot(sd, self.r)
     
-    def solve(self, gamma, primal_dual="both", projected=False, pv_max_duality_gap=1e-10):
+    def solve(self, gamma, **kwargs):
+
+        primal_dual        = kwargs.get("primal_dual", "dual")
+        pv_max_duality_gap = kwargs.get("pv_max_duality_gap", 1e-10)
+
         if primal_dual == "both":
-            rho_p, Q, info_p = self.solve(gamma, primal_dual="primal", projected=projected) # type: ignore
-            rho_d, w, info_d = self.solve(gamma, primal_dual="dual",   projected=projected) # type: ignore
+            kwargs_p = kwargs.copy(); kwargs_p["primal_dual"] = "primal"
+            kwargs_d = kwargs.copy(); kwargs_d["primal_dual"] = "dual"
+
+            rho_p, info_p = self.solve(gamma, **kwargs_p) # type: ignore
+            rho_d, info_d = self.solve(gamma, **kwargs_d) # type: ignore
 
             assert np.abs(rho_p - rho_d) < pv_max_duality_gap
 
             rho = np.random.choice([rho_p, rho_d])
             info = { **info_p, **info_d}
 
-            return rho, (Q, w), info
+            return rho, info
 
         elif primal_dual == "primal":
-            Q, info = self.get_avf(gamma, projected=projected)
-            rho = self.get_pv_primal(gamma, Q)
-            return rho, Q, info
+            Q, info = self.solve_avf(gamma, **kwargs)
+            rho = self.solve_pv_primal(gamma, Q)
+
+            info["Q"] = Q
+
+            return rho, info
 
         elif primal_dual == "dual":
-            w, info = self.get_sdc(gamma, projected=projected)
-            sd = w * self.dD
-            rho = self.get_pv_dual(sd)
-            return rho, w, info
+            w, info = self.solve_sdc(gamma, **kwargs)
+            d = w * self.dD
+
+            rho = self.solve_pv_dual(d)
+
+            info["d"] = d
+            info["w"] = w
+
+            return rho, info
 
         else:
             return NotImplementedError
