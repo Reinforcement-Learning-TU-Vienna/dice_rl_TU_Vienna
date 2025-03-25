@@ -120,8 +120,14 @@ class TabularOffPE(ABC):
     @abstractmethod
     def __name__(self): pass
 
-    def __init__(self, dataset, n_obs, n_act, path=None, verbosity=0):
-        self.auxiliary_estimates = AuxiliaryEstimates(
-            dataset, n_obs, n_act, path, verbosity, )
+    def __init__(self, dataset, n_obs, n_act, path=None, verbosity=0, auxiliary_estimates=None):
+        if auxiliary_estimates is None:
+            auxiliary_estimates = AuxiliaryEstimates(dataset, n_obs, n_act, path, verbosity, )
+
+        self.auxiliary_estimates = auxiliary_estimates
+
+    @abstractmethod
+    def solve(self, gamma, **kwargs):
+        pass
 
 # ---------------------------------------------------------------- #
