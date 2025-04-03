@@ -85,10 +85,12 @@ def get_model(model_type, dir_data, env, hyperparameters, verbosity=0):
 
 def get_model_PPO(dir_data, env, hyperparameters, verbosity=0):
     model_type = PPO
+    hyperparameters["model_type"] = "PPO"
     return get_model(model_type, dir_data, env, hyperparameters, verbosity)
 
 def get_model_MaskablePPO(dir_data, env, hyperparameters, verbosity=0):
     model_type = MaskablePPO
+    hyperparameters["model_type"] = "MaskablePPO"
     return get_model(model_type, dir_data, env, hyperparameters, verbosity)
 
 
