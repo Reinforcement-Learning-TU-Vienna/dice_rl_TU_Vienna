@@ -113,11 +113,12 @@ def get_dataset(
         verbosity=0,
     ):
 
-    file_path_json = os.path.join(dir, "dataset.json")
     loaded = False
-
-    if verbosity > 0: print(f"trying to find id_dataset in {file_path_json}")
-    id_dataset = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
+    id_dataset = None
+    if dir is not None:
+        file_path_json = os.path.join(dir, "dataset.json")
+        if verbosity > 0: print(f"trying to find id_dataset in {file_path_json}")
+        id_dataset = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
 
     if id_dataset is not None:
         dir_dataset = os.path.join(dir, id_dataset)
@@ -136,13 +137,14 @@ def get_dataset(
         if postprocessing is not None:
             dataset = postprocessing(dataset)
 
-        if verbosity > 0: print(f"removing dataset hyperparameters from {file_path_json}")
-        json_remove_by_dict(file_path=file_path_json, dictionary=hyperparameters)
+        if dir is not None:
+            if verbosity > 0: print(f"removing dataset hyperparameters from {file_path_json}")
+            json_remove_by_dict(file_path=file_path_json, dictionary=hyperparameters)
 
-        if verbosity > 0: print("saving dataset")
-        id_dataset = save_dataset(dir, dataset, hyperparameters, verbosity)
+            if verbosity > 0: print("saving dataset")
+            id_dataset = save_dataset(dir, dataset, hyperparameters, verbosity)
 
-    assert id_dataset is not None
+    if dir is not None: assert id_dataset is not None
     return dataset, id_dataset
 
 
