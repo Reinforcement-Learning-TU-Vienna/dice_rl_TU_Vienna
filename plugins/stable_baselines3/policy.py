@@ -58,7 +58,11 @@ def get_model(model_type, dir_data, env, hyperparameters, verbosity=0):
     loaded = False
 
     if verbosity > 0: print(f"trying to find id_policy in {file_path_json}")
-    id_policy = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
+    id_policy = json_get_id(
+        file_path=file_path_json,
+        dictionary=hyperparameters,
+        asserting=False,
+    )
 
     if id_policy is not None:
         dir_policy = os.path.join(dir_data, id_policy)
