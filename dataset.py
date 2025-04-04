@@ -8,6 +8,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from datetime import datetime
 
+from dice_rl_TU_Vienna.utils.general import merge_dicts
 from dice_rl_TU_Vienna.utils.seeds import set_all_seeds
 from dice_rl_TU_Vienna.utils.json import (
     json_get_id, json_remove_by_dict, json_append, )
@@ -54,8 +55,10 @@ def create_dataset_from_env(env, get_act, hyperparameters, verbosity=0):
     if by_trajectories:
         assert not by_samples
 
-        dataset["id"] = []
-        dataset["t"] = []
+        dataset = merge_dicts(
+            { "id": [], "t": [], },
+            dataset,
+        )
 
         pbar = range(n_trajectories)
         if verbosity > 0: pbar = tqdm(pbar)
@@ -118,7 +121,11 @@ def get_dataset(
     if dir is not None:
         file_path_json = os.path.join(dir, "dataset.json")
         if verbosity > 0: print(f"trying to find id_dataset in {file_path_json}")
-        id_dataset = json_get_id(file_path=file_path_json, dictionary=hyperparameters)
+        id_dataset = json_get_id(
+            file_path=file_path_json,
+            dictionary=hyperparameters,
+            asserting=False,
+        )
 
     if id_dataset is not None:
         dir_dataset = os.path.join(dir, id_dataset)
