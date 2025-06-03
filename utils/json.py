@@ -5,7 +5,13 @@ import json
 
 # ---------------------------------------------------------------- #
 
-def json_append(file_path, dictionary):
+def json_append(file_path, dictionary, id=None):
+    if id is not None:
+        dictionary = {
+            "id": id,
+            "data": dictionary,
+        }
+
     if os.path.exists(file_path):
         with open(file_path, "r") as file:
             content = json.load(file)
