@@ -2,12 +2,12 @@
 
 import numpy as np
 
-from dice_rl_TU_Vienna.estimators.tabular.tabular_OffPE import TabularOffPE
+from dice_rl_TU_Vienna.estimators.tabular.model_based_tabular_OffPE import ModelBasedTabularOffPE
 from dice_rl_TU_Vienna.estimators.tabular.bellman_equations import solve_forwards_bellman_equations_approximate
 
 # ---------------------------------------------------------------- #
 
-class TabularVafe(TabularOffPE):
+class TabularVafe(ModelBasedTabularOffPE):
     @property
     def __name__(self): return "TabularVafe"
 
