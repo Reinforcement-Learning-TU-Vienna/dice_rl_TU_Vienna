@@ -8,20 +8,20 @@ from dice_rl_TU_Vienna.utils.numpy import (
 
 # ---------------------------------------------------------------- #
 
-def solve_forwards_bellman_equations(
+def solve_forward_bellman_equations(
         dD, r, P, gamma, projected=False):
 
     mask = dD == 0
 
     (r_,), (P_,) = project_in(mask, (r,), (P,), projected)
 
-    f, info = solve_standard_forwards_bellman_equations(
+    f, info = solve_standard_forward_bellman_equations(
         r=r_, P=P_, gamma=gamma)
 
     return f, info
 
 
-def solve_standard_forwards_bellman_equations(
+def solve_standard_forward_bellman_equations(
         r, P, gamma):
 
     if gamma < 1:
@@ -42,14 +42,14 @@ def solve_standard_forwards_bellman_equations(
     return f, info
 
 
-def solve_forwards_bellman_equations_approximate(
+def solve_forward_bellman_equations_approximate(
         dD_bar, r_bar, P_bar, gamma, projected=False):
 
     mask = dD_bar == 0
 
     (dD_, r_,), (P_,) = project_in(mask, (dD_bar, r_bar,), (P_bar,), projected)
 
-    f_, info = solve_standard_forwards_bellman_equations_approximate(
+    f_, info = solve_standard_forward_bellman_equations_approximate(
         dD_bar=dD_, r_bar=r_, P_bar=P_, gamma=gamma)
 
     f = project_out(mask, f_, projected, masking_value=0)
@@ -57,13 +57,13 @@ def solve_forwards_bellman_equations_approximate(
     return f, info
 
 
-def solve_standard_forwards_bellman_equations_approximate(
+def solve_standard_forward_bellman_equations_approximate(
         dD_bar, r_bar, P_bar, gamma):
 
     r_hat = safe_divide(r_bar, dD_bar)
     P_hat = safe_divide(P_bar.T, dD_bar).T
 
-    f_hat, info = solve_standard_forwards_bellman_equations(
+    f_hat, info = solve_standard_forward_bellman_equations(
         r=r_hat, P=P_hat, gamma=gamma, )
 
     if "pv" in info.keys(): info = { "pv_approx": info["pv"], }
@@ -72,7 +72,7 @@ def solve_standard_forwards_bellman_equations_approximate(
 
 # ---------------------------------------------------------------- #
 
-def solve_backwards_bellman_equations(
+def solve_backward_bellman_equations(
         d0, dD, P, gamma, modified=False, projected=False):
 
     mask = dD == 0
@@ -80,11 +80,11 @@ def solve_backwards_bellman_equations(
     (d0_, dD_), (P_,) = project_in(mask, (d0, dD), (P,), projected)
 
     if modified:
-        w_, info = solve_modified_backwards_bellman_equations(
+        w_, info = solve_modified_backward_bellman_equations(
             d0=d0_, dD=dD_, P=P_, gamma=gamma)
 
     else:
-        d_, info = solve_standard_backwards_bellman_equations(
+        d_, info = solve_standard_backward_bellman_equations(
             d0=d0_, P=P_, gamma=gamma)
         w_ = safe_divide(d_, dD_, zero_div_zero=-1)
 
@@ -95,7 +95,7 @@ def solve_backwards_bellman_equations(
     return w, info
 
 
-def solve_standard_backwards_bellman_equations(
+def solve_standard_backward_bellman_equations(
         d0, P, gamma):
 
     if gamma < 1:
@@ -114,7 +114,7 @@ def solve_standard_backwards_bellman_equations(
 
     return d, info
 
-def solve_modified_backwards_bellman_equations(
+def solve_modified_backward_bellman_equations(
         d0, dD, P, gamma):
 
     mask = dD == 0
@@ -143,7 +143,7 @@ def solve_modified_backwards_bellman_equations(
     return w, info
 
 
-def solve_backwards_bellman_equations_approximate(
+def solve_backward_bellman_equations_approximate(
         d0_bar, dD_bar, P_bar, n, gamma, modified=False, projected=False):
 
     mask = dD_bar == 0
@@ -151,11 +151,11 @@ def solve_backwards_bellman_equations_approximate(
     (d0_, dD_), (P_,) = project_in(mask, (d0_bar, dD_bar), (P_bar,), projected)
 
     if modified:
-        w_, info = solve_modified_backwards_bellman_equations_approximate(
+        w_, info = solve_modified_backward_bellman_equations_approximate(
             d0_bar=d0_, dD_bar=dD_, P_bar=P_, n=n, gamma=gamma)
 
     else:
-        d_, info = solve_standard_backwards_bellman_equations_approximate(
+        d_, info = solve_standard_backward_bellman_equations_approximate(
             d0_bar=d0_, dD_bar=dD_, P_bar=P_, n=n, gamma=gamma)
         w_ = safe_divide(d_, dD_ / n, zero_div_zero=-1)
 
@@ -166,20 +166,20 @@ def solve_backwards_bellman_equations_approximate(
     return w_hat, info
 
 
-def solve_standard_backwards_bellman_equations_approximate(
+def solve_standard_backward_bellman_equations_approximate(
         d0_bar, dD_bar, P_bar, n, gamma):
 
     d0_hat = d0_bar / n
     P_hat = safe_divide(P_bar.T, dD_bar).T
 
-    d, info = solve_standard_backwards_bellman_equations(
+    d, info = solve_standard_backward_bellman_equations(
         d0=d0_hat, P=P_hat, gamma=gamma, )
 
     if "ev" in info.keys(): info = { "ev_approx": info["ev"], }
 
     return d, info
 
-def solve_modified_backwards_bellman_equations_approximate(
+def solve_modified_backward_bellman_equations_approximate(
         d0_bar, dD_bar, P_bar, n, gamma):
 
     mask = dD_bar == 0
@@ -210,7 +210,7 @@ def solve_modified_backwards_bellman_equations_approximate(
 def test_avf(gamma, Q, P, r):
     assert 0 < gamma < 1
 
-    title = f"Checking forwards Bellman equations ({gamma=}):"
+    title = f"Checking forward Bellman equations ({gamma=}):"
     bar = "-" * len(title)
     print(title); print(bar)
 

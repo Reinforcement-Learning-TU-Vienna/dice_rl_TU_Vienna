@@ -6,7 +6,7 @@ import tensorflow as tf
 from abc import ABC, abstractmethod
 
 from dice_rl_TU_Vienna.estimators.tabular.bellman_equations import (
-    solve_forwards_bellman_equations, solve_backwards_bellman_equations, )
+    solve_forward_bellman_equations, solve_backward_bellman_equations, )
 
 from dice_rl_TU_Vienna.utils.numpy import safe_divide
 
@@ -43,13 +43,13 @@ class AnalyticalSolver(ABC):
     def solve_avf(self, gamma, **kwargs):
         projected = kwargs["projected"]
 
-        return solve_forwards_bellman_equations(
+        return solve_forward_bellman_equations(
             dD=self.dD, r=self.r, P=self.P, gamma=gamma, projected=projected)
 
     def solve_sdc(self, gamma, **kwargs):
         projected = kwargs["projected"]
 
-        return solve_backwards_bellman_equations(
+        return solve_backward_bellman_equations(
             d0=self.d0, dD=self.dD, P=self.P, gamma=gamma, projected=projected)
 
     def solve_pv_primal(self, gamma, Q):

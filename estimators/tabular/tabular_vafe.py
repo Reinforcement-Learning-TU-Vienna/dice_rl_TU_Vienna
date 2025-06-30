@@ -3,7 +3,7 @@
 import numpy as np
 
 from dice_rl_TU_Vienna.estimators.tabular.model_based_tabular_OffPE import ModelBasedTabularOffPE
-from dice_rl_TU_Vienna.estimators.tabular.bellman_equations import solve_forwards_bellman_equations_approximate
+from dice_rl_TU_Vienna.estimators.tabular.bellman_equations import solve_forward_bellman_equations_approximate
 
 # ---------------------------------------------------------------- #
 
@@ -17,7 +17,7 @@ class TabularVafe(ModelBasedTabularOffPE):
 
         d0_bar, dD_bar, P_bar, r_bar, n = self.auxiliary_estimates.bar
 
-        Q_hat, info = solve_forwards_bellman_equations_approximate(
+        Q_hat, info = solve_forward_bellman_equations_approximate(
             dD_bar, r_bar, P_bar, gamma, projected, )
 
         return Q_hat, info
