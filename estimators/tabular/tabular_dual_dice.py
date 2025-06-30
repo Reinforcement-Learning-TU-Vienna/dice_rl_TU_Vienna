@@ -34,15 +34,15 @@ class TabularDualDice(TabularDice):
         a = np.dot(A, A.T)
         b = (1 - gamma) * d0_
 
-        hv_ = np.linalg.solve(a, b)
-        sdc_ = safe_divide(np.dot(hv_, A), sqrt_dD_, zero_div_zero=-1)
+        v_ = np.linalg.solve(a, b)
+        sdc_ = safe_divide(np.dot(v_, A), sqrt_dD_, zero_div_zero=-1)
 
         # -------------------------------- #
 
-        hv_hat  = project_out(mask, hv_,  projected, masking_value=-1)
+        v_hat  = project_out(mask, v_,  projected, masking_value=-1)
         sdc_hat = project_out(mask, sdc_, projected, masking_value=-1)
 
-        info = { "hv_hat": hv_hat, }
+        info = { "v_hat": v_hat, }
 
         return sdc_hat, info
 
