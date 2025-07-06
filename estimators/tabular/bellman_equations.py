@@ -224,7 +224,7 @@ def test_avf(gamma, Q, P, r):
 
 def test_sd(gamma, d, d0, P):
 
-    title = f"Checking backwards Bellman equations ({gamma=}):"
+    title = f"Checking backward Bellman equations ({gamma=}):"
     bar = "-" * len(title)
     print(title); print(bar)
 
@@ -247,7 +247,7 @@ def test_sd(gamma, d, d0, P):
 
 def test_sdc(gamma, w, d0, dD, P):
 
-    title = f"Checking modified backwards Bellman equations ({gamma=}):"
+    title = f"Checking modified backward Bellman equations ({gamma=}):"
     bar = "-" * len(title)
     print(title); print(bar)
 
