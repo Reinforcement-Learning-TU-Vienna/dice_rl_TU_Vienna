@@ -41,13 +41,13 @@ class AnalyticalSolver(ABC):
         pass
 
     def solve_avf(self, gamma, **kwargs):
-        projected = kwargs["projected"]
+        projected = kwargs.get("projected", False)
 
         return solve_forward_bellman_equations(
             dD=self.dD, r=self.r, P=self.P, gamma=gamma, projected=projected)
 
     def solve_sdc(self, gamma, **kwargs):
-        projected = kwargs["projected"]
+        projected = kwargs.get("projected", False)
 
         return solve_backward_bellman_equations(
             d0=self.d0, dD=self.dD, P=self.P, gamma=gamma, projected=projected)
